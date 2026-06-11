@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -2700,6 +2700,101 @@ body::before {
   color: var(--text-primary);
   background: var(--bg-hover);
 }
+
+/* ─── Rotation Block Lesson Indicators ─────────────────── */
+.block-lesson-indicator-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.block-lesson-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--status-amber-bg);
+  color: var(--status-amber);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.block-lesson-indicator-wrapper:hover .block-lesson-indicator {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.block-lesson-tooltip {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  left: 105%;
+  top: 50%;
+  transform: translateY(-50%) translateX(8px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: var(--glass-shadow);
+  padding: var(--space-3);
+  min-width: 200px;
+  z-index: 100;
+  pointer-events: none;
+  transition: opacity var(--transition-fast), transform var(--transition-fast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.block-lesson-indicator-wrapper:hover .block-lesson-tooltip,
+.block-lesson-indicator-wrapper.active .block-lesson-tooltip {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(-50%) translateX(4px);
+  pointer-events: auto;
+}
+
+/* Tooltip internal layout */
+.block-lesson-tooltip .tooltip-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  text-align: left;
+}
+
+.block-lesson-tooltip .tooltip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.block-lesson-tooltip .tooltip-guard {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: left;
+}
+
+.block-lesson-tooltip .tooltip-time {
+  font-size: 0.65rem;
+  color: var(--text-tertiary);
+  text-align: left;
+}
+
+.block-lesson-tooltip .tooltip-subject {
+  font-size: 0.65rem;
+  color: var(--status-amber);
+  font-style: italic;
+  text-align: left;
+}
+
 
 </style>
 </head>
@@ -6775,6 +6870,10 @@ function fTime(time) {
 }
 
 function renderBlockGrid(blocks, state) {
+  const day = state.selectedDay;
+  const filteredLessons = getFilteredLessonsForWeek(state);
+  const dayLessons = filteredLessons.filter(l => l.day === day);
+
   return `
     <div class="block-grid">
       ${blocks.map((block, idx) => {
@@ -6783,6 +6882,39 @@ function renderBlockGrid(blocks, state) {
         const intervalDisplay = block.interval !== state.settings.rotationIntervalMinutes
           ? `<span class="interval-tag">⏱ ${block.interval}m</span>` : '';
         const isChecked = selectedBlockIds.has(block.id);
+
+        const bStart = timeToMinutes(block.startTime);
+        const bEnd = timeToMinutes(block.endTime);
+        const overlappingLessons = dayLessons.filter(l => {
+          const lStart = timeToMinutes(l.startTime);
+          const lEnd = lStart + parseInt(l.durationMinutes);
+          return bStart < lEnd && bEnd > lStart;
+        });
+
+        let lessonIndicatorHTML = '';
+        if (overlappingLessons.length > 0) {
+          lessonIndicatorHTML = `
+            <div class="block-lesson-indicator-wrapper" onclick="window.__toggleLessonTooltip(event, '${block.id}')">
+              <span class="block-lesson-indicator">📚 ${overlappingLessons.length} ${overlappingLessons.length === 1 ? 'lesson' : 'lessons'}</span>
+              <div class="block-lesson-tooltip" onclick="event.stopPropagation()">
+                <div class="tooltip-header">Lessons during this block:</div>
+                ${overlappingLessons.map(l => {
+                  const guard = state.guards.find(g => g.id === l.guardId);
+                  const guardName = guard ? guard.name : 'Unknown';
+                  const lEndEnd = timeToMinutes(l.startTime) + parseInt(l.durationMinutes);
+                  const timeStr = `${formatTime(l.startTime)} – ${formatTime(minutesToTime(lEndEnd))}`;
+                  return `
+                    <div class="tooltip-item">
+                      <span class="tooltip-guard">${guardName}</span>
+                      <span class="tooltip-time">${timeStr}</span>
+                      ${l.subject ? `<span class="tooltip-subject">${l.subject}</span>` : ''}
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          `;
+        }
 
         return `
           <div class="block-row ${isClosed ? 'closed' : ''} ${isChecked ? 'selected-row' : ''}" id="block-${block.id}">
@@ -6793,7 +6925,10 @@ function renderBlockGrid(blocks, state) {
             </div>
             <div class="block-time-label">
               <span class="time-range">${fTime(block.startTime)} – ${fTime(block.endTime)}</span>
-              ${intervalDisplay}
+              <div style="display:flex; align-items:center; gap:6px; margin-top:2px; flex-wrap:wrap;">
+                ${intervalDisplay}
+                ${lessonIndicatorHTML}
+              </div>
               ${isClosed ? '<span class="status-pill closed">Closed</span>' : ''}
               <button class="btn btn-ghost btn-icon btn-sm split-row-btn" title="Split Block"
                       onclick="window.__quickSplitBlock('${block.id}')">
@@ -8939,6 +9074,29 @@ window.__deleteShift = (guardId, day) => {
 
 // Expose handlers to window for inline onclick
 window.__openShiftModal = showShiftModal;
+
+window.__toggleLessonTooltip = (e, blockId) => {
+  e.stopPropagation();
+  const wrapper = e.currentTarget.closest('.block-lesson-indicator-wrapper');
+  if (!wrapper) return;
+  
+  const isAlreadyActive = wrapper.classList.contains('active');
+  
+  // Close any other active lesson tooltips first
+  document.querySelectorAll('.block-lesson-indicator-wrapper.active').forEach(w => {
+    w.classList.remove('active');
+  });
+  
+  if (!isAlreadyActive) {
+    wrapper.classList.add('active');
+    
+    const closeTooltip = () => {
+      wrapper.classList.remove('active');
+      document.removeEventListener('click', closeTooltip);
+    };
+    setTimeout(() => document.addEventListener('click', closeTooltip), 0);
+  }
+};
 
 window.__toggleAssignmentDropdown = (e, blockId, position) => {
   e.stopPropagation();
