@@ -2977,6 +2977,20 @@ function loadState() {
     const saved = localStorage.getItem(STORE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
+      if (parsed.settings) {
+        let syncChanged = false;
+        if (parsed.settings.teamupApiKey && !syncConfig.teamupApiKey) {
+          syncConfig.teamupApiKey = parsed.settings.teamupApiKey;
+          syncChanged = true;
+        }
+        if (parsed.settings.teamupCalendarKey && !syncConfig.teamupCalendarKey) {
+          syncConfig.teamupCalendarKey = parsed.settings.teamupCalendarKey;
+          syncChanged = true;
+        }
+        if (syncChanged) {
+          saveSyncConfig();
+        }
+      }
       const mergedSettings = { ...defaultSettings, ...parsed.settings };
       if (parsed.settings && parsed.settings.doorCreditPercent !== undefined && parsed.settings.doorCreditMultiplier === undefined) {
         mergedSettings.doorCreditMultiplier = parsed.settings.doorCreditPercent / 100;
@@ -4140,7 +4154,9 @@ const defaultSyncConfig = {
   gistFilename: 'lifeguard_schedule.json',
   autoSync: true,
   lastSyncedAt: null,
-  lastGistSyncTime: null
+  lastGistSyncTime: null,
+  teamupApiKey: '',
+  teamupCalendarKey: ''
 };
 
 let syncConfig = loadSyncConfig();
@@ -7777,17 +7793,17 @@ function renderSettingsTab(state) {
           <div class="card-body">
             <div class="setting-item">
               <label>Developer API Key (Teamup-Token)</label>
-              <input type="password" class="form-input" value="${s.teamupApiKey || ''}" 
+              <input type="password" class="form-input" value="${syncConfig.teamupApiKey || s.teamupApiKey || ''}" 
                      id="setting-teamup-api-key" placeholder="Enter your Teamup developer API key"
-                     onchange="window.__updateSetting('teamupApiKey', this.value)" />
+                     onchange="window.__updateSyncConfig('teamupApiKey', this.value)" />
               <span class="setting-description">Your TeamUp developer API key. Get one free at <a href="https://teamup.com/api-keys" target="_blank" style="color: var(--accent-primary);">teamup.com/api-keys</a></span>
             </div>
 
             <div class="setting-item mt-4">
               <label>Calendar Key</label>
-              <input type="text" class="form-input" value="${s.teamupCalendarKey || ''}" 
+              <input type="text" class="form-input" value="${syncConfig.teamupCalendarKey || s.teamupCalendarKey || ''}" 
                      id="setting-teamup-calendar-key" placeholder="e.g. ks1234567890abcdef"
-                     onchange="window.__updateSetting('teamupCalendarKey', this.value)" />
+                     onchange="window.__updateSyncConfig('teamupCalendarKey', this.value)" />
               <span class="setting-description">The 18-character key from your TeamUp calendar URL (after teamup.com/)</span>
             </div>
 
@@ -10696,8 +10712,9 @@ function attachGlobalEvents(state) {
   if (syncTeamUpBtn) {
     syncTeamUpBtn.addEventListener('click', async () => {
       const state = store.getState();
-      const apiKey = state.settings.teamupApiKey;
-      const calendarKey = state.settings.teamupCalendarKey;
+      const syncConfig = typeof syncManager !== 'undefined' ? syncManager.getConfig() : {};
+      const apiKey = syncConfig.teamupApiKey || state.settings.teamupApiKey;
+      const calendarKey = syncConfig.teamupCalendarKey || state.settings.teamupCalendarKey;
 
       if (!apiKey || !calendarKey) {
         showToast('Please configure your TeamUp API Key and Calendar Key in Settings first.', 'warning');
