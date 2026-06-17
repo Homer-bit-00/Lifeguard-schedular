@@ -3044,7 +3044,8 @@ function pushUndo() {
     blockAssignments: JSON.parse(JSON.stringify(state.blockAssignments)),
     manualAssignments: JSON.parse(JSON.stringify(state.manualAssignments || {})),
     rotationBlocks: JSON.parse(JSON.stringify(state.rotationBlocks)),
-    lessons: JSON.parse(JSON.stringify(state.lessons || []))
+    lessons: JSON.parse(JSON.stringify(state.lessons || [])),
+    shifts: JSON.parse(JSON.stringify(state.shifts || {}))
   };
   state = {
     ...state,
@@ -3119,6 +3120,7 @@ const store = {
   setShiftEntry(guardId, day, shiftData, week) {
     const w = week || state.selectedWeek;
     const key = `${guardId}-${day}-${w}`;
+    pushUndo();
     state = {
       ...state,
       shifts: { ...state.shifts, [key]: { guardId, day, week: w, ...shiftData } }
@@ -3129,6 +3131,7 @@ const store = {
   removeShiftEntry(guardId, day, week) {
     const w = week || state.selectedWeek;
     const key = `${guardId}-${day}-${w}`;
+    pushUndo();
     const newShifts = { ...state.shifts };
     delete newShifts[key];
     delete newShifts[`${guardId}-${day}`]; // clean up legacy
@@ -3230,6 +3233,7 @@ const store = {
   },
 
   updateBlock(day, blockId, updates, week) {
+    pushUndo();
     const w = week || state.selectedWeek;
     const key = `${day}-${w}`;
     const existingBlocks = state.rotationBlocks[key] || state.rotationBlocks[day] || [];
@@ -3244,6 +3248,7 @@ const store = {
   },
 
   updateBlockGuardCount(day, blockId, count, week) {
+    pushUndo();
     const w = week || state.selectedWeek;
     const key = `${day}-${w}`;
     const existingBlocks = state.rotationBlocks[key] || state.rotationBlocks[day] || [];
@@ -3412,6 +3417,7 @@ const store = {
 
   // ─── Block Assignments ────────────────────────────────
   setBlockAssignment(blockId, position, guardId, week) {
+    pushUndo();
     const w = week || state.selectedWeek;
     const key = `${blockId}-${position}-${w}`;
     state = {
@@ -3423,6 +3429,7 @@ const store = {
   },
 
   removeBlockAssignment(blockId, position, week) {
+    pushUndo();
     const w = week || state.selectedWeek;
     const key = `${blockId}-${position}-${w}`;
     const newAssignments = { ...state.blockAssignments };
@@ -3512,6 +3519,7 @@ const store = {
       manualAssignments: previous.manualAssignments || {},
       rotationBlocks: previous.rotationBlocks || {},
       lessons: previous.lessons || state.lessons || [],
+      shifts: previous.shifts || state.shifts || {},
       undoStack: state.undoStack.slice(0, -1)
     };
     notify();
@@ -3856,6 +3864,7 @@ const store = {
 
   // ─── Lessons Actions ──────────────────────────────────
   addLesson(guardId, day, startTime, durationMinutes, notes, week, subject) {
+    pushUndo();
     const lesson = {
       id: generateUUID(),
       guardId,
@@ -3873,6 +3882,7 @@ const store = {
   },
 
   addOrOverwriteLesson(guardId, day, startTime, durationMinutes, notes, week, subject) {
+    pushUndo();
     const w = week || state.selectedWeek;
     const startMin = timeToMinutes(startTime);
     const endMin = startMin + parseInt(durationMinutes);
@@ -3904,6 +3914,7 @@ const store = {
   },
 
   updateLesson(id, updates) {
+    pushUndo();
     const lessons = state.lessons.map(l => {
       if (l.id !== id) return l;
       const merged = { ...l, ...updates };
@@ -3917,6 +3928,7 @@ const store = {
   },
 
   removeLesson(id) {
+    pushUndo();
     state = { ...state, lessons: state.lessons.filter(l => l.id !== id) };
     notify();
   },
@@ -4000,6 +4012,7 @@ const store = {
     }
 
     if (copyCount > 0) {
+      pushUndo();
       state = { ...state, shifts: newShifts };
       notify();
     }
@@ -4153,6 +4166,7 @@ const defaultSyncConfig = {
   gistId: '',
   gistFilename: 'lifeguard_schedule.json',
   autoSync: true,
+  autoPushDelay: 25, // seconds
   lastSyncedAt: null,
   lastGistSyncTime: null,
   teamupApiKey: '',
@@ -4256,6 +4270,15 @@ async function updateGistAPI(token, gistId, filename, content) {
 }
 
 let lastVisibilityCheckTime = 0;
+let lastUserActivityTime = Date.now();
+
+if (typeof window !== 'undefined') {
+  const updateActivity = () => { lastUserActivityTime = Date.now(); };
+  window.addEventListener('mousemove', updateActivity, { passive: true });
+  window.addEventListener('keydown', updateActivity, { passive: true });
+  window.addEventListener('mousedown', updateActivity, { passive: true });
+  window.addEventListener('touchstart', updateActivity, { passive: true });
+}
 
 function handleVisibilityChange() {
   if (document.visibilityState === 'visible') {
@@ -4353,6 +4376,13 @@ const syncManager = {
     if (syncConfig.provider === 'github_gist' && syncConfig.githubToken) {
       // Start background polling (every 5 seconds)
       syncPollInterval = setInterval(() => {
+        // Pause background pulling if the user has been active within the last 15 seconds, 
+        // or if a modal is currently open. This prevents sync pulls from disrupting edits.
+        const isUserActive = (Date.now() - lastUserActivityTime) < 15000;
+        const isModalOpen = typeof document !== 'undefined' && document.querySelector('.modal-overlay') !== null;
+        
+        if (isUserActive || isModalOpen) return;
+
         if (document.visibilityState === 'visible' && syncStatus !== 'syncing' && syncStatus !== 'conflict') {
           this.checkSync();
         }
@@ -4390,7 +4420,7 @@ const syncManager = {
       syncDebounceTimer = setTimeout(() => {
         syncDebounceTimer = null;
         this.autoPush();
-      }, 25000); // 25 seconds of inactivity before pushing
+      }, (syncConfig.autoPushDelay || 25) * 1000);
     }
   },
 
@@ -6564,6 +6594,7 @@ function renderScheduleTab(state) {
               </div>
             </div>
             <div class="flex gap-2">
+              <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
               <button class="btn btn-secondary btn-sm" id="copy-prev-shifts-btn" title="Copy shift schedule from the previous week">📋 Copy Prev Week</button>
               <button class="btn btn-secondary btn-sm" id="share-link-btn" title="Generate shareable URL link for guards">🔗 Share Link</button>
               <button class="btn btn-secondary btn-sm" id="export-pdf-btn">Export PDF</button>
@@ -6801,6 +6832,7 @@ function renderRotationTab(state) {
               </div>
             </div>
             <div class="flex gap-2" style="flex-wrap: wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
               <button class="btn btn-secondary btn-sm" id="generate-blocks-btn" title="Generate time blocks from shifts">
                 ⏱ Generate Blocks
               </button>
@@ -6815,9 +6847,6 @@ function renderRotationTab(state) {
               </button>
               <button class="btn btn-secondary btn-sm" id="clear-assignments-btn" title="Clear all assignments">
                 🗑 Clear
-              </button>
-              <button class="btn btn-ghost btn-sm" id="undo-btn" title="Undo last assignment change">
-                ↩ Undo
               </button>
             </div>
           </div>
@@ -7737,6 +7766,14 @@ function renderSettingsTab(state) {
                 <span class="setting-description">Automatically pull cloud updates on startup or when returning to this page, and automatically save changes in the background.</span>
               </div>
 
+              <div class="setting-item mt-4">
+                <label>Auto-Push Delay (seconds)</label>
+                <input type="number" class="form-input" id="sync-auto-push-delay" 
+                       value="${syncConfig.autoPushDelay || 25}" min="2" max="300" 
+                       onchange="window.__updateSyncConfig('autoPushDelay', parseInt(this.value) || 25)" />
+                <span class="setting-description">How many seconds of inactivity to wait before pushing local changes to the cloud.</span>
+              </div>
+
               <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
                 <button class="btn btn-secondary btn-sm" onclick="window.__testSyncConnection()">⚡ Test Connection</button>
                 <button class="btn btn-secondary btn-sm" onclick="window.__pullSyncNow()">📥 Pull Now (Cloud → Local)</button>
@@ -8176,6 +8213,7 @@ function renderLessonsTab(state) {
             </div>
           </div>
           <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
             <button class="btn btn-secondary btn-sm" id="import-lessons-btn" title="Import swim lessons from a TeamUp CSV file">📂 Import CSV</button>
             <input type="file" id="import-lessons-file-input" accept=".csv" style="display: none;" />
             <button class="btn btn-secondary btn-sm" id="sync-teamup-btn" title="Sync swim lessons from TeamUp API">🔄 Sync TeamUp</button>
@@ -9252,7 +9290,11 @@ window.__assignGuard = (blockId, position, guardId, event) => {
   }
 };
 
-
+  window.__undoAction = () => {
+    if (store.undoAssignments()) {
+      renderApp();
+    }
+  };
 
 
 window.__clearGuardWeekShifts = (guardId, event) => {
@@ -10620,17 +10662,7 @@ function attachGlobalEvents(state) {
     });
   }
 
-  // Undo button
-  const undoBtn = document.getElementById('undo-btn');
-  if (undoBtn) {
-    undoBtn.addEventListener('click', () => {
-      if (store.undoAssignments()) {
-        showToast('Undone!', 'success');
-      } else {
-        showToast('Nothing to undo', 'info');
-      }
-    });
-  }
+
 
 
 
