@@ -747,8 +747,8 @@ body::before {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: var(--status-purple-bg);
-  color: var(--status-purple);
+  background: rgba(125, 211, 252, 0.12);
+  color: #7dd3fc;
   padding: 1px 5px;
   border-radius: var(--radius-full);
   font-size: 0.6rem;
@@ -2848,6 +2848,8 @@ const defaultSettings = {
   doorCreditMultiplier: 0.5,
   doorCreditPercent: 50,
   lessonMultiplier: 0.75,
+  shiftLengthScalerBaseHours: 4,
+  shiftLengthScalerFactor: 0.0,
   lessonsStartTime: '08:00',
   lessonsEndTime: '18:00',
   lessonsExcludeSaturday: false,
@@ -5186,28 +5188,39 @@ function calcGuardStandTime(guardId, day, blockAssignments, blocks, shifts, sett
     }
   }
 
-  // Total weighted minutes
-  const totalMinutes =
-    rawStandMinutes +
-    doorMinutes * doorCreditMultiplier +
-    lessonEquivMinutes;
-
   // Shift duration for this guard
   let shiftDurationMinutes = 0;
   if (guardShift) {
     shiftDurationMinutes = getTimeDuration(guardShift.startTime, guardShift.endTime) - (guardShift.breakMinutes || 0);
   }
 
+  // Total weighted minutes
+  const totalMinutes =
+    rawStandMinutes +
+    doorMinutes * doorCreditMultiplier +
+    lessonEquivMinutes;
+
+  // Apply shift-length scaler if configured
+  const scalerBaseHours = settings?.shiftLengthScalerBaseHours ?? 4;
+  const scalerFactor = settings?.shiftLengthScalerFactor ?? 0.0;
+  let scalerMultiplier = 1.0;
+  if (scalerFactor > 0 && shiftDurationMinutes > 0) {
+    const shiftHours = shiftDurationMinutes / 60;
+    const excessHours = Math.max(0, shiftHours - scalerBaseHours);
+    scalerMultiplier = 1.0 + scalerFactor * excessHours;
+  }
+  const finalTotalMinutes = totalMinutes * scalerMultiplier;
+
   // Percentage (0–100)
   const percentage =
-    shiftDurationMinutes > 0 ? (totalMinutes / shiftDurationMinutes) * 100 : 0;
+    shiftDurationMinutes > 0 ? (finalTotalMinutes / shiftDurationMinutes) * 100 : 0;
 
   return {
     rawStandMinutes,
     doorMinutes,
     rawLessonMinutes,
     lessonEquivMinutes: Math.round(lessonEquivMinutes * 10) / 10,
-    totalMinutes: Math.round(totalMinutes * 10) / 10,
+    totalMinutes: Math.round(finalTotalMinutes * 10) / 10,
     shiftDurationMinutes,
     percentage: Math.round(percentage * 10) / 10,
   };
@@ -6715,8 +6728,31 @@ function renderGuardRow(guard, days, state) {
         const onclickAttr = isReadOnly ? '' : `onclick="window.__openShiftModal('${guard.id}', '${d}')"`;
         
         let cellContent = '';
+        let openerIndicator = '';
+        let closerIndicator = '';
         if (shift) {
+          const dayConfig = state.settings.blockCreationWindows?.[d] || {};
+          const openStartMin = timeToMinutes(dayConfig.openingStart || '09:00');
+          const openEndMin = timeToMinutes(dayConfig.openingEnd || '10:00');
+          const closeStartMin = timeToMinutes(dayConfig.closingStart || '16:00');
+          const closeEndMin = timeToMinutes(dayConfig.closingEnd || '17:00');
+          
+          const sStart = timeToMinutes(shift.startTime);
+          const sEnd = timeToMinutes(shift.endTime);
+          
+          const isOpener = sStart < openEndMin && sEnd > openStartMin;
+          const isCloser = sStart < closeEndMin && sEnd > closeStartMin;
+
+          if (isOpener) {
+            openerIndicator = `<span style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--am-300); border: 1px solid rgba(230, 168, 23, 0.3); box-shadow: 0 0 2px var(--am-300);" title="Opening Shift"></span>`;
+          }
+          if (isCloser) {
+            closerIndicator = `<span style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--pm-300); border: 1px solid rgba(124, 58, 237, 0.3); box-shadow: 0 0 2px var(--pm-300);" title="Closing Shift"></span>`;
+          }
+
           cellContent = `
+            ${openerIndicator}
+            ${closerIndicator}
             <span class="shift-time">${fTime(shift.startTime)}–${fTime(shift.endTime)}</span>
             <div style="display:flex; align-items:center; gap:4px; justify-content:center; flex-wrap:wrap;">
               <span class="shift-duration">🕒 ${formatDuration(getTimeDuration(shift.startTime, shift.endTime) - (shift.breakMinutes || 0))}</span>
@@ -6737,7 +6773,7 @@ function renderGuardRow(guard, days, state) {
 
         return `
           <td>
-            <div class="${cellClass}" data-guard-id="${guard.id}" data-day="${d}" id="shift-${guard.id}-${d}" ${onclickAttr}>
+            <div class="${cellClass}" data-guard-id="${guard.id}" data-day="${d}" id="shift-${guard.id}-${d}" ${onclickAttr} style="position: relative;">
               ${cellContent}
             </div>
           </td>
@@ -7130,7 +7166,7 @@ function renderDailyTracker(state) {
                     <div class="stand-time-fill ${status}" style="width: ${Math.min(100, pctDisplay)}%"></div>
                   </div>
                   <div class="stand-time-detail">
-                    🏖️ ${formatDuration(st.rawStandMinutes)} • 🚪 ${formatDuration(st.doorMinutes)} (${formatDuration(Math.round(st.doorMinutes * doorMult))} credit) • 📚 ${formatDuration(st.rawLessonMinutes)}
+                    🏖️ ${formatDuration(st.rawStandMinutes)} (${formatDuration(Math.round(st.totalMinutes))} credit) • 🚪 ${formatDuration(st.doorMinutes)} • 📚 ${formatDuration(st.rawLessonMinutes)}
                   </div>
                 </div>
               `;
@@ -7390,17 +7426,33 @@ function renderSettingsTab(state) {
             <div class="setting-item mt-4">
               <label>Door Credit Multiplier</label>
               <input type="number" class="form-input" value="${s.doorCreditMultiplier ?? 0.5}"
-                     min="0" max="1" step="0.05" id="setting-door-mult"
+                     min="0" max="2" step="0.05" id="setting-door-mult"
                      onchange="window.__updateSetting('doorCreditMultiplier', parseFloat(this.value))" />
-              <span class="setting-description">Door duty time × this value = stand-time equivalent (0–1)</span>
+              <span class="setting-description">Door duty time × this value = stand-time equivalent (0–2)</span>
             </div>
 
             <div class="setting-item mt-4">
               <label>Lesson Multiplier</label>
               <input type="number" class="form-input" value="${s.lessonMultiplier}"
-                     min="0" max="1" step="0.05" id="setting-lesson-mult"
+                     min="0" max="2" step="0.05" id="setting-lesson-mult"
                      onchange="window.__updateSetting('lessonMultiplier', parseFloat(this.value))" />
-              <span class="setting-description">Lesson time × this value = stand-time equivalent (0–1)</span>
+              <span class="setting-description">Lesson time × this value = stand-time equivalent (0–2)</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Long-Shift Scaler Base (hours)</label>
+              <input type="number" class="form-input" value="${s.shiftLengthScalerBaseHours ?? 4}"
+                     min="0" max="12" step="0.5" id="setting-scaler-base"
+                     onchange="window.__updateSetting('shiftLengthScalerBaseHours', parseFloat(this.value))" />
+              <span class="setting-description">Base hours before multiplier starts to scale (e.g. 4 hours)</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Long-Shift Scaler Factor (per hour)</label>
+              <input type="number" class="form-input" value="${s.shiftLengthScalerFactor ?? 0.0}"
+                     min="0" max="1" step="0.01" id="setting-scaler-factor"
+                     onchange="window.__updateSetting('shiftLengthScalerFactor', parseFloat(this.value))" />
+              <span class="setting-description">Multiplier increase per hour beyond base (e.g. 0.05 is 5%/hr). Set to 0 to disable.</span>
             </div>
           </div>
         </div>
@@ -7450,13 +7502,13 @@ function renderSettingsTab(state) {
                 `;
               }).join('')}
             </div>
-            <span class="setting-description" style="margin-top: 8px; display: block; font-size: 0.75rem; color: var(--text-tertiary);">
-              Configures predefined start & end times when adding shifts for AM vs PM guards.
             </span>
           </div>
         </div>
+      </div>
 
-        <div class="card mt-4">
+      <div class="settings-section">
+        <div class="card">
           <div class="card-header"><h3>Default Block Generation Windows</h3></div>
           <div class="card-body">
             <!-- Day selector tabs -->
@@ -7468,6 +7520,31 @@ function renderSettingsTab(state) {
                   ${d.slice(0,3)}
                 </button>
               `).join('')}
+            </div>
+
+            <!-- Copy Settings Panel -->
+            <div style="margin-bottom: 16px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px dashed var(--border-subtle); border-radius: 6px;">
+              <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-secondary);">
+                  Copy <strong>${activeDay}</strong>'s settings to other days:
+                </span>
+                <div style="display: flex; gap: 4px; align-items: center; flex-wrap: wrap;">
+                  ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                    .filter(d => d !== activeDay)
+                    .map(d => `
+                      <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; cursor: pointer; user-select: none; padding: 3px 6px; border: 1px solid var(--border-subtle); border-radius: 4px; background: var(--bg-primary);">
+                        <input type="checkbox" class="copy-to-day-checkbox" value="${d}" style="margin: 0; width: 13px; height: 13px; cursor: pointer;" />
+                        <span>${d.slice(0,3)}</span>
+                      </label>
+                    `).join('')}
+                  <button class="btn btn-secondary btn-sm" style="padding: 3px 8px; font-size: 0.75rem; font-weight: 500; border-radius: 4px; margin-left: 6px; background: transparent; border: 1px solid var(--border-subtle);" onclick="window.__toggleAllCopyDays(this)">
+                    Select All
+                  </button>
+                  <button class="btn btn-primary btn-sm" style="padding: 3px 8px; font-size: 0.75rem; font-weight: 500; border-radius: 4px;" onclick="window.__copySettingsToSelected('${activeDay}')">
+                    Apply Copy
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- Base Window Limits -->
@@ -7555,7 +7632,8 @@ function renderSettingsTab(state) {
                              onchange="window.__updateExtraBlockWindow('${activeDay}', ${idx}, 'endTime', this.value)" />
                     </div>
 
-                    <label style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 500; cursor: pointer; user-select: none;">
+                    <label style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 500; cursor: pointer; user-select: none;"
+                           title="Align blocks to standard rotation interval boundaries (e.g. xx:00, xx:30). If unchecked, blocks increment directly from the start time.">
                       <input type="checkbox" ${win.align ? 'checked' : ''} 
                              onchange="window.__updateExtraBlockWindow('${activeDay}', ${idx}, 'align', this.checked)" />
                       Align
@@ -7660,10 +7738,8 @@ function renderSettingsTab(state) {
             </span>
           </div>
         </div>
-      </div>
 
-      <div class="settings-section">
-        <div class="card">
+        <div class="card mt-4">
           <div class="card-header"><h3>Data Management</h3></div>
           <div class="card-body">
             <div class="setting-item">
@@ -9529,6 +9605,51 @@ window.__updateDefaultShiftTime = (crew, day, field, value) => {
   
   store.updateSettings({ defaultShiftTimes });
   showToast(`Default ${crew} shift for ${day} updated`, 'success');
+};
+
+window.__toggleAllCopyDays = (btn) => {
+  const checkboxes = document.querySelectorAll('.copy-to-day-checkbox');
+  const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+  checkboxes.forEach(cb => cb.checked = !allChecked);
+  btn.textContent = allChecked ? 'Select All' : 'Deselect All';
+};
+
+window.__copySettingsToSelected = (fromDay) => {
+  const checkboxes = document.querySelectorAll('.copy-to-day-checkbox');
+  const targetDays = [];
+  checkboxes.forEach(cb => {
+    if (cb.checked) {
+      targetDays.push(cb.value);
+    }
+  });
+
+  if (targetDays.length === 0) {
+    showToast('Please select at least one day to copy settings to', 'warning');
+    return;
+  }
+
+  const settings = store.getState().settings;
+  const blockCreationWindows = { ...settings.blockCreationWindows };
+  const sourceConfig = blockCreationWindows[fromDay] || {
+    limitStart: false,
+    startTime: '09:00',
+    limitEnd: false,
+    endTime: '17:00',
+    extraWindows: [],
+    excludeWindows: [],
+    defaultBlocks: [],
+    openingStart: '09:00',
+    openingEnd: '10:00',
+    closingStart: '16:00',
+    closingEnd: '17:00'
+  };
+
+  targetDays.forEach(day => {
+    blockCreationWindows[day] = JSON.parse(JSON.stringify(sourceConfig));
+  });
+
+  store.updateSettings({ blockCreationWindows });
+  showToast(`Successfully copied settings from ${fromDay} to ${targetDays.join(', ')}`, 'success');
 };
 
 window.__updateBlockCreationWindowConfig = (day, field, value) => {
