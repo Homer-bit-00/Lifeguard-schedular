@@ -6743,10 +6743,10 @@ function renderGuardRow(guard, days, state) {
           const isOpener = sStart < openEndMin && sEnd > openStartMin;
           const isCloser = sStart < closeEndMin && sEnd > closeStartMin;
 
-          if (isOpener) {
+          if (!isReadOnly && isOpener) {
             openerIndicator = `<span style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--am-300); border: 1px solid rgba(230, 168, 23, 0.3); box-shadow: 0 0 2px var(--am-300);" title="Opening Shift"></span>`;
           }
-          if (isCloser) {
+          if (!isReadOnly && isCloser) {
             closerIndicator = `<span style="position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--pm-300); border: 1px solid rgba(124, 58, 237, 0.3); box-shadow: 0 0 2px var(--pm-300);" title="Closing Shift"></span>`;
           }
 
