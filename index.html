@@ -2979,20 +2979,6 @@ function loadState() {
     const saved = localStorage.getItem(STORE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (parsed.settings) {
-        let syncChanged = false;
-        if (parsed.settings.teamupApiKey && !syncConfig.teamupApiKey) {
-          syncConfig.teamupApiKey = parsed.settings.teamupApiKey;
-          syncChanged = true;
-        }
-        if (parsed.settings.teamupCalendarKey && !syncConfig.teamupCalendarKey) {
-          syncConfig.teamupCalendarKey = parsed.settings.teamupCalendarKey;
-          syncChanged = true;
-        }
-        if (syncChanged) {
-          saveSyncConfig();
-        }
-      }
       const mergedSettings = { ...defaultSettings, ...parsed.settings };
       if (parsed.settings && parsed.settings.doorCreditPercent !== undefined && parsed.settings.doorCreditMultiplier === undefined) {
         mergedSettings.doorCreditMultiplier = parsed.settings.doorCreditPercent / 100;
@@ -3023,6 +3009,31 @@ function loadState() {
   return { ...defaultState };
 }
 
+// Migrate TeamUp credentials from the main state settings into the separate
+// sync config storage. This must run AFTER both `state` and `syncConfig` are
+// initialised (they live far apart in the file). The credentials in
+// state.settings are intentionally preserved — they are never deleted.
+function migrateTeamUpCredentials() {
+  try {
+    if (state.settings) {
+      let syncChanged = false;
+      if (state.settings.teamupApiKey && !syncConfig.teamupApiKey) {
+        syncConfig.teamupApiKey = state.settings.teamupApiKey;
+        syncChanged = true;
+      }
+      if (state.settings.teamupCalendarKey && !syncConfig.teamupCalendarKey) {
+        syncConfig.teamupCalendarKey = state.settings.teamupCalendarKey;
+        syncChanged = true;
+      }
+      if (syncChanged) {
+        saveSyncConfig();
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to migrate TeamUp credentials', e);
+  }
+}
+
 function saveState() {
   if (state.isReadOnly) return; // Do not persist shared read-only states to localStorage
   try {
@@ -3035,6 +3046,12 @@ function saveState() {
 
 function notify() {
   saveState();
+  if (typeof isSyncLoading !== 'undefined' && !isSyncLoading) {
+    lastLocalEditTime = new Date().toISOString();
+    try {
+      localStorage.setItem('lifeguard_last_local_edit_time', lastLocalEditTime);
+    } catch (e) {}
+  }
   listeners.forEach(fn => fn(state));
   if (typeof syncManager !== 'undefined') {
     syncManager.handleStoreUpdate();
@@ -3763,6 +3780,16 @@ const store = {
       if (!data.guards || !data.settings) {
         throw new Error('Invalid data format');
       }
+      // Extract and remove the sync revision counter from imported data
+      // so it doesn't pollute the local state. Update our local revision
+      // to match the cloud's so future conflict checks work correctly.
+      if (data._syncRevision !== undefined) {
+        if (typeof syncConfig !== 'undefined') {
+          syncConfig.syncRevision = data._syncRevision;
+          saveSyncConfig();
+        }
+        delete data._syncRevision;
+      }
       const mergedSettings = { ...defaultSettings, ...data.settings };
       if (data.settings && data.settings.doorCreditPercent !== undefined && data.settings.doorCreditMultiplier === undefined) {
         mergedSettings.doorCreditMultiplier = data.settings.doorCreditPercent / 100;
@@ -4169,6 +4196,7 @@ const defaultSyncConfig = {
   gistFilename: 'lifeguard_schedule.json',
   autoSync: true,
   autoPushDelay: 25, // seconds
+  syncRevision: 0, // app-level revision counter, incremented on each push
   lastSyncedAt: null,
   lastGistSyncTime: null,
   teamupApiKey: '',
@@ -4184,6 +4212,12 @@ let isSyncBusy = false; // Concurrency lock to prevent checkSync/autoPush overla
 let syncDebounceTimer = null;
 let syncPollInterval = null;
 let lastPullTime = 0; // Timestamp of last successful pull, used for post-pull cooldown
+let conflictCloudTime = null;
+let lastLocalEditTime = localStorage.getItem('lifeguard_last_local_edit_time') || (syncConfig ? syncConfig.lastGistSyncTime : null);
+
+// Now that syncConfig is available, migrate any TeamUp credentials that were
+// stored inside the main state.settings into the separate sync config namespace.
+migrateTeamUpCredentials();
 
 function loadSyncConfig() {
   try {
@@ -4282,6 +4316,52 @@ if (typeof window !== 'undefined') {
   window.addEventListener('touchstart', updateActivity, { passive: true });
 }
 
+function isCloudVersionNewer(gist, cloudUpdatedAt) {
+  const { gistFilename, syncRevision, lastGistSyncTime } = syncConfig;
+  const file = gist.files[gistFilename];
+  if (file && file.content) {
+    try {
+      const cloudData = JSON.parse(file.content);
+      const cloudRevision = cloudData._syncRevision || 0;
+      const localRevision = syncRevision || 0;
+
+      if (cloudRevision > localRevision) {
+        return true;
+      }
+      if (cloudRevision === localRevision && localRevision > 0) {
+        return false;
+      }
+    } catch (e) {
+      console.warn('Failed to parse cloud content for revision check:', e);
+    }
+  }
+
+  if (lastGistSyncTime) {
+    const cloudTime = new Date(cloudUpdatedAt).getTime();
+    const localTime = new Date(lastGistSyncTime).getTime();
+    return cloudTime > localTime;
+  }
+  return true;
+}
+
+// Check if any popup, dropdown, or modal is currently open.
+// A re-render while one of these is open would destroy it.
+function hasOpenPopup() {
+  if (typeof document === 'undefined') return false;
+  return document.querySelector(
+    '.modal-overlay, .assignment-dropdown, .sync-dropdown, .guard-dropdown-list'
+  ) !== null;
+}
+
+// Full interaction check for background pulls: returns true if the user
+// touched/moved/typed within the last 15 seconds OR has a popup open.
+// Background pulls import foreign data and cause a full re-render,
+// so we want a wide safety margin.
+function isUserInteracting() {
+  const isRecentlyActive = (Date.now() - lastUserActivityTime) < 15000;
+  return isRecentlyActive || hasOpenPopup();
+}
+
 function handleVisibilityChange() {
   if (document.visibilityState === 'visible') {
     const now = Date.now();
@@ -4313,8 +4393,17 @@ const syncManager = {
     return syncLastError;
   },
 
+  getLastLocalEditTime() {
+    return lastLocalEditTime;
+  },
+
+  getConflictCloudTime() {
+    return conflictCloudTime;
+  },
+
   setConflictResolved() {
     syncStatus = 'idle';
+    conflictCloudTime = null;
   },
 
   updateConfig(updates) {
@@ -4356,11 +4445,11 @@ const syncManager = {
   },
 
   reinitialize() {
+    // Only restore a persisted baseline — never capture a fresh one here.
+    // If there is no persisted baseline (first connection), leave it null
+    // so checkSync() can detect the first-connection case and handle it
+    // appropriately (prompt if local has data, auto-pull if empty).
     lastSyncedJSON = loadLastSyncedJSON();
-    if (lastSyncedJSON === null && syncConfig.provider !== 'none') {
-      lastSyncedJSON = store.exportSyncData();
-      saveLastSyncedJSON(lastSyncedJSON);
-    }
 
     if (syncDebounceTimer) {
       clearTimeout(syncDebounceTimer);
@@ -4378,12 +4467,9 @@ const syncManager = {
     if (syncConfig.provider === 'github_gist' && syncConfig.githubToken) {
       // Start background polling (every 5 seconds)
       syncPollInterval = setInterval(() => {
-        // Pause background pulling if the user has been active within the last 15 seconds, 
-        // or if a modal is currently open. This prevents sync pulls from disrupting edits.
-        const isUserActive = (Date.now() - lastUserActivityTime) < 15000;
-        const isModalOpen = typeof document !== 'undefined' && document.querySelector('.modal-overlay') !== null;
-        
-        if (isUserActive || isModalOpen) return;
+        // Pause background pulling if the user is actively interacting.
+        // This prevents sync pulls from closing dropdowns or disrupting edits.
+        if (isUserInteracting()) return;
 
         if (document.visibilityState === 'visible' && syncStatus !== 'syncing' && syncStatus !== 'conflict') {
           this.checkSync();
@@ -4421,6 +4507,14 @@ const syncManager = {
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
       syncDebounceTimer = setTimeout(() => {
         syncDebounceTimer = null;
+        // Only defer if a dropdown/modal is literally open — a re-render would
+        // destroy it. We do NOT check general mouse/keyboard activity here,
+        // because the user expects the push to happen after N seconds of their
+        // last edit, not N seconds of total inactivity.
+        if (hasOpenPopup()) {
+          this.handleStoreUpdate(); // reschedule
+          return;
+        }
         this.autoPush();
       }, (syncConfig.autoPushDelay || 25) * 1000);
     }
@@ -4440,14 +4534,22 @@ const syncManager = {
       const gist = await fetchGistAPI(githubToken, gistId);
       const cloudUpdatedAt = gist.updated_at;
 
-      // Only proceed if cloud version is strictly newer than our last sync time
-      if (syncConfig.lastGistSyncTime) {
-        const cloudTime = new Date(cloudUpdatedAt).getTime();
-        const localTime = new Date(syncConfig.lastGistSyncTime).getTime();
-        if (cloudTime <= localTime) {
-          isSyncBusy = false;
-          return; // Cloud is older or same as local, do not pull
+      // Determine if cloud is newer
+      const cloudIsNewer = isCloudVersionNewer(gist, cloudUpdatedAt);
+
+      if (!cloudIsNewer) {
+        // Cloud is older or same as local — no pull needed.
+        // If we previously had a transient error, clear it now since we
+        // successfully reached the cloud.
+        if (syncStatus === 'error') {
+          syncStatus = 'idle';
+          syncLastError = null;
+          isSyncLoading = true;
+          notify();
+          isSyncLoading = false;
         }
+        isSyncBusy = false;
+        return;
       }
 
       // Cloud IS newer — decide how to handle it
@@ -4456,13 +4558,49 @@ const syncManager = {
         const currentJSON = store.exportSyncData();
         const isDirty = lastSyncedJSON !== null && currentJSON !== lastSyncedJSON;
 
-        if (!isDirty || lastSyncedJSON === null) {
-          // Local is clean or first sync — auto-pull silently
+        if (lastSyncedJSON === null) {
+          // First connection — no prior baseline exists.
+          // Check if the user has any meaningful local data.
+          const hasLocalData = 
+            (state.guards && state.guards.length > 0) ||
+            (state.lessons && state.lessons.length > 0) ||
+            (state.shifts && Object.keys(state.shifts).length > 0) ||
+            (state.rotationBlocks && Object.keys(state.rotationBlocks).length > 0) ||
+            (state.blockAssignments && Object.keys(state.blockAssignments).length > 0);
+          if (hasLocalData) {
+            // User has local work — show conflict prompt so they can choose
+            syncStatus = 'conflict';
+            conflictCloudTime = cloudUpdatedAt;
+            isSyncLoading = true;
+            notify();
+            isSyncLoading = false;
+            if (typeof window.__showConflictModal === 'function') {
+              if (!document.getElementById('sync-conflict-overlay')) {
+                window.__showConflictModal(cloudUpdatedAt, lastLocalEditTime, syncConfig.lastGistSyncTime);
+              }
+            }
+          } else {
+            // No local data — safe to auto-pull
+            if (typeof showToast === 'function') {
+              showToast('Loading schedule from cloud (first connection)...', 'info');
+            }
+            // Release isSyncBusy before calling pull() — pull() acquires it.
+            // JS is single-threaded so no race between release and re-acquire.
+            isSyncBusy = false;
+            await this.pull(gist);
+            return; // pull() already released isSyncBusy
+          }
+        } else if (!isDirty) {
+          // Local is clean — auto-pull
+          // Release isSyncBusy before calling pull() — pull() acquires it.
+          isSyncBusy = false;
           await this.pull(gist);
+          return; // pull() already released isSyncBusy
         } else {
           // Both sides changed — show conflict (only if not already showing)
           if (syncStatus !== 'conflict') {
             syncStatus = 'conflict';
+            conflictCloudTime = cloudUpdatedAt;
             // Notify UI without triggering sync
             isSyncLoading = true;
             notify();
@@ -4470,7 +4608,7 @@ const syncManager = {
             if (typeof window.__showConflictModal === 'function') {
               // Only show if one isn't already visible
               if (!document.getElementById('sync-conflict-overlay')) {
-                window.__showConflictModal(cloudUpdatedAt);
+                window.__showConflictModal(cloudUpdatedAt, lastLocalEditTime, syncConfig.lastGistSyncTime);
               }
             }
           }
@@ -4494,6 +4632,9 @@ const syncManager = {
 
   async pull(fetchedGist = null) {
     if (syncConfig.provider === 'none' || !syncConfig.githubToken || !syncConfig.gistId) return;
+    // Concurrency guard: don't overlap with checkSync or push
+    if (isSyncBusy) return;
+    isSyncBusy = true;
 
     const { githubToken, gistId, gistFilename } = syncConfig;
     syncStatus = 'syncing';
@@ -4552,15 +4693,18 @@ const syncManager = {
     // Record pull time for cooldown
     lastPullTime = Date.now();
 
-    // Release the sync loading guard
+    // Release both guards
     isSyncLoading = false;
+    isSyncBusy = false;
   },
 
   async push(force = false) {
     if (syncConfig.provider === 'none' || !syncConfig.githubToken || !syncConfig.gistId) return;
-    // Concurrency guard
+    // Concurrency guard: don't overlap with checkSync or pull
     if (syncStatus === 'syncing') return;
     if (syncStatus === 'conflict' && !force) return;
+    if (isSyncBusy) return;
+    isSyncBusy = true;
 
     const { githubToken, gistId, gistFilename } = syncConfig;
 
@@ -4571,9 +4715,14 @@ const syncManager = {
     try {
       syncLastError = null;
       const content = store.exportSyncData();
-      const result = await updateGistAPI(githubToken, gistId, gistFilename, content);
+      // Embed the revision counter inside the pushed JSON
+      const parsed = JSON.parse(content);
+      syncConfig.syncRevision = (syncConfig.syncRevision || 0) + 1;
+      parsed._syncRevision = syncConfig.syncRevision;
+      const contentWithRevision = JSON.stringify(parsed);
+      const result = await updateGistAPI(githubToken, gistId, gistFilename, contentWithRevision);
       
-      lastSyncedJSON = content;
+      lastSyncedJSON = content; // baseline uses the clean version (without _syncRevision)
       saveLastSyncedJSON(content);
       syncConfig.lastSyncedAt = new Date().toISOString();
       syncConfig.lastGistSyncTime = result.updated_at;
@@ -4590,6 +4739,7 @@ const syncManager = {
     // Final UI update — isSyncLoading stays true to block handleStoreUpdate
     notify();
     isSyncLoading = false;
+    isSyncBusy = false;
   },
 
   async autoPush() {
@@ -4612,25 +4762,20 @@ const syncManager = {
       const gist = await fetchGistAPI(githubToken, gistId);
       const cloudUpdatedAt = gist.updated_at;
 
-      if (syncConfig.lastGistSyncTime) {
-        const cloudTime = new Date(cloudUpdatedAt).getTime();
-        const localTime = new Date(syncConfig.lastGistSyncTime).getTime();
-
-        if (cloudTime > localTime) {
-          // Cloud is newer than our last sync — another device pushed.
-          // Trigger conflict detection instead of silently overwriting.
-          isSyncBusy = false;
-          syncStatus = 'conflict';
-          isSyncLoading = true;
-          notify();
-          isSyncLoading = false;
-          if (typeof window.__showConflictModal === 'function') {
-            if (!document.getElementById('sync-conflict-overlay')) {
-              window.__showConflictModal(cloudUpdatedAt);
-            }
+      const cloudIsNewer = isCloudVersionNewer(gist, cloudUpdatedAt);
+      if (cloudIsNewer) {
+        isSyncBusy = false;
+        syncStatus = 'conflict';
+        conflictCloudTime = cloudUpdatedAt;
+        isSyncLoading = true;
+        notify();
+        isSyncLoading = false;
+        if (typeof window.__showConflictModal === 'function') {
+          if (!document.getElementById('sync-conflict-overlay')) {
+            window.__showConflictModal(cloudUpdatedAt, lastLocalEditTime, syncConfig.lastGistSyncTime);
           }
-          return;
         }
+        return;
       }
     } catch (e) {
       console.error('Pre-push cloud check failed:', e);
@@ -4659,13 +4804,18 @@ const syncManager = {
     try {
       syncLastError = null;
       const content = store.exportSyncData();
+      // Embed revision counter in the initial Gist, matching push() behavior
+      const parsed = JSON.parse(content);
+      syncConfig.syncRevision = 1;
+      parsed._syncRevision = syncConfig.syncRevision;
+      const contentWithRevision = JSON.stringify(parsed);
       const filename = gistFilename || 'lifeguard_schedule.json';
-      const gist = await createGistAPI(githubToken, filename, content);
+      const gist = await createGistAPI(githubToken, filename, contentWithRevision);
 
       syncConfig.gistId = gist.id;
       syncConfig.lastGistSyncTime = gist.updated_at;
       syncConfig.lastSyncedAt = new Date().toISOString();
-      lastSyncedJSON = content;
+      lastSyncedJSON = content; // baseline uses the clean version (without _syncRevision)
       saveLastSyncedJSON(content);
       saveSyncConfig();
 
@@ -9996,8 +10146,19 @@ window.__pullSyncNow = async () => {
 window.__pushSyncNow = async () => {
   if (typeof syncManager === 'undefined') return;
   saveSyncSettingsFromDOM();
-  showToast('Pushing local changes to cloud...', 'info');
-  await syncManager.push(false);
+  const status = syncManager.getStatus();
+  if (status === 'conflict') {
+    // During a conflict, confirm the user wants to force-overwrite the cloud
+    if (!confirm('There is a sync conflict. Push will overwrite the cloud version with your local data. Continue?')) {
+      return;
+    }
+    syncManager.setConflictResolved();
+    showToast('Force-pushing local changes to cloud...', 'info');
+    await syncManager.push(true);
+  } else {
+    showToast('Pushing local changes to cloud...', 'info');
+    await syncManager.push(false);
+  }
 };
 
 window.__createGistAutomatically = async () => {
@@ -10022,7 +10183,10 @@ window.__handleSyncBadgeClick = (event) => {
   const status = syncManager.getStatus();
   if (status === 'conflict') {
     const config = syncManager.getConfig();
-    window.__showConflictModal(config.lastGistSyncTime || new Date().toISOString());
+    const cloudTime = syncManager.getConflictCloudTime() || config.lastGistSyncTime || new Date().toISOString();
+    const localTime = syncManager.getLastLocalEditTime();
+    const lastSyncTime = config.lastGistSyncTime;
+    window.__showConflictModal(cloudTime, localTime, lastSyncTime);
     return;
   }
 
@@ -10126,12 +10290,20 @@ window.__openSyncSettings = () => {
   }, 100);
 };
 
-window.__showConflictModal = (cloudTimeStr) => {
+window.__showConflictModal = (cloudTimeStr, localTimeStr, lastSyncTimeStr) => {
   const existing = document.getElementById('sync-conflict-overlay');
   if (existing) return; // Don't stack conflict modals
 
-  const cloudTime = new Date(cloudTimeStr).toLocaleTimeString();
-  const localTime = new Date().toLocaleTimeString();
+  const formatTime = (str) => {
+    if (!str) return 'Never';
+    const date = new Date(str);
+    if (isNaN(date.getTime())) return 'Never';
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+  };
+
+  const cloudTime = formatTime(cloudTimeStr);
+  const localTime = formatTime(localTimeStr || new Date().toISOString());
+  const lastSyncTime = formatTime(lastSyncTimeStr);
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -10144,11 +10316,24 @@ window.__showConflictModal = (cloudTimeStr) => {
       </div>
       <div class="modal-body" style="line-height: 1.5;">
         <p>The schedule has been modified in the cloud since you last synced.</p>
-        <div style="margin: 12px 0; font-size: 0.85rem; color: var(--text-secondary); background: rgba(0,0,0,0.15); padding: 8px 12px; border-radius: 4px; border-left: 3px solid var(--status-amber);">
-          Cloud version: <strong>${cloudTime}</strong><br>
-          Your local changes: <strong>${localTime}</strong>
+        <div style="margin: 12px 0; font-size: 0.85rem; color: var(--text-secondary); background: rgba(0,0,0,0.15); padding: 10px 14px; border-radius: 6px; border-left: 4px solid var(--status-amber); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <span>Last successful sync:</span>
+            <strong>${lastSyncTime}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <span>Cloud version:</span>
+            <strong>${cloudTime}</strong>
+          </div>
+          <div style="display: flex; justify-content: space-between; gap: 8px;">
+            <span>Your local changes:</span>
+            <strong>${localTime}</strong>
+          </div>
         </div>
-        <p style="font-size: 0.85rem;">Please select how you want to resolve this conflict:</p>
+        <p style="font-size: 0.82rem; margin-top: 10px; color: var(--text-secondary); line-height: 1.4;">
+          <strong>Why is this a conflict?</strong> Even though your local changes are newer than the cloud version, the cloud has updates from <strong>${cloudTime}</strong> that your local app doesn't have yet (since you last synced at <strong>${lastSyncTime}</strong>). Pushing would completely overwrite those cloud updates.
+        </p>
+        <p style="font-size: 0.85rem; margin-top: 12px;">Please select how you want to resolve this conflict:</p>
         
         <div style="margin-top: 15px; display: flex; flex-direction: column; gap: 8px;">
           <button class="btn btn-secondary" onclick="window.__resolveConflict('pull')" style="text-align: left; justify-content: flex-start; padding: 12px 16px; height: auto; white-space: normal; width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;">
