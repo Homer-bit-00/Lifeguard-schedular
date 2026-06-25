@@ -148,6 +148,14 @@ body {
   overflow-x: hidden;
 }
 
+/* Universal emoji mode: redefining --font-family on <body> cascades to every
+   element that uses var(--font-family). 'Noto Color Emoji' sits after 'Inter'
+   so Latin text still uses Inter while emoji codepoints (absent from Inter)
+   render from the bundled webfont — consistent on any OS, incl. Windows 7. */
+body.universal-emoji {
+  --font-family: 'Inter', 'Noto Color Emoji', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
 /* Subtle background gradient */
 body::before {
   content: '';
@@ -506,6 +514,17 @@ body::before {
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+.btn-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+  color: var(--status-amber);
+}
+
+.btn-warning:hover {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--text-secondary);
@@ -611,7 +630,7 @@ body::before {
 }
 
 .radio-option {
-  padding: var(--space-1) var(--space-3);
+  padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
   border: none;
   background: transparent;
@@ -650,7 +669,7 @@ body::before {
 }
 
 .guard-roster-panel {
-  width: 280px;
+  width: 220px;
   flex-shrink: 0;
 }
 
@@ -801,6 +820,27 @@ body::before {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  /* Allow this section to shrink so a long name wraps instead of pushing
+     the action buttons off the edge of the chip. */
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The text column grows to fill the space left of the action buttons (so
+   short names never collapse) while min-width:0 lets it stay within bounds so
+   a very long name wraps instead of overflowing. */
+.guard-chip .guard-chip-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.guard-chip .guard-chip-name-row {
+  min-width: 0;
+}
+
+/* Keep the crew badge intact next to a wrapping name. */
+.guard-chip .guard-name + .crew-badge {
+  flex-shrink: 0;
 }
 
 .guard-chip .guard-avatar {
@@ -813,6 +853,8 @@ body::before {
   font-size: var(--font-xs);
   font-weight: 700;
   color: white;
+  /* Never let the avatar collapse when the name is long. */
+  flex-shrink: 0;
 }
 
 .guard-chip .guard-avatar.am {
@@ -826,6 +868,13 @@ body::before {
 .guard-chip .guard-name {
   font-size: var(--font-sm);
   font-weight: 500;
+  /* Keep the name on a single line; if it's too long (including a pasted
+     payload) it truncates with an ellipsis rather than wrapping vertically
+     or pushing the action buttons out of reach. */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .guard-chip 
@@ -840,6 +889,7 @@ body::before {
   color: var(--text-primary);
   border: 1px solid var(--border-default);
   width: fit-content;
+  white-space: nowrap;
 }
 
 .total-hours-badge.empty {
@@ -849,9 +899,9 @@ body::before {
 }
 
 .crew-badge {
-  font-size: 0.6rem;
+  font-size: 0.55rem;
   font-weight: 700;
-  padding: 1px 6px;
+  padding: 1px 4px;
   border-radius: var(--radius-full);
   text-transform: uppercase;
 }
@@ -868,9 +918,25 @@ body::before {
 
 .guard-chip .guard-actions {
   display: flex;
-  gap: var(--space-1);
+  /* Stack the two action buttons vertically and keep them compact so the
+     name has as much horizontal room as possible. */
+  flex-direction: column;
+  gap: 4px;
   opacity: 0;
   transition: opacity var(--transition-fast);
+  flex-shrink: 0;
+  margin-left: var(--space-2);
+}
+
+/* Compact, square action buttons. */
+.guard-chip .guard-actions .btn {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  font-size: 0.65rem;
+  line-height: 1;
 }
 
 .guard-chip:hover .guard-actions {
@@ -918,7 +984,7 @@ body::before {
 
 .block-row {
   display: grid;
-  grid-template-columns: 28px 165px 1fr auto;
+  grid-template-columns: 28px 120px 1fr auto;
   gap: var(--space-3);
   align-items: center;
   padding: var(--space-3) var(--space-4);
@@ -993,34 +1059,6 @@ body::before {
   flex-direction: column;
   gap: 2px;
   position: relative;
-  padding-right: 28px;
-}
-
-.split-row-btn {
-  position: absolute;
-  right: 2px;
-  top: 50%;
-  transform: translateY(-50%);
-  opacity: 0;
-  transition: opacity var(--transition-fast);
-  cursor: pointer;
-  font-size: 0.85rem;
-  padding: 2px;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-}
-
-.block-row:hover .split-row-btn {
-  opacity: 0.6;
-}
-
-.block-row:hover .split-row-btn:hover {
-  opacity: 1;
-  background: rgba(255, 255, 255, 0.08);
 }
 
 .block-time-label .time-range {
@@ -2000,6 +2038,28 @@ body::before {
   white-space: nowrap;
 }
 
+.assignment-option .time-since-indicator {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+
+.assignment-option .shift-start-badge {
+  font-size: 0.65rem;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 2px 6px;
+  border-radius: 12px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+
+
+
 /* ─── Mobile Read-Only Portal ───────────────────────────── */
 .read-only-header {
   background: linear-gradient(135deg, rgba(30, 32, 48, 0.95), rgba(15, 17, 23, 0.95)) !important;
@@ -2209,18 +2269,24 @@ body::before {
 /* ─── Block Re-division Styles ───────────────────────── */
 
 .selection-floating-bar {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 800px;
+  z-index: 1000;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--bg-tertiary);
+  background: rgba(22, 28, 45, 0.9);
   border: 1px solid var(--primary-500);
   border-radius: var(--radius-md);
   padding: var(--space-3) var(--space-4);
-  margin-bottom: var(--space-4);
-  box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  animation: slideDown 0.25s ease-out;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: slideUpFloatingBar 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .selection-info {
@@ -2244,16 +2310,17 @@ body::before {
   gap: var(--space-2);
 }
 
-@keyframes slideDown {
+@keyframes slideUpFloatingBar {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translate(-50%, 20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-50%, 0);
   }
 }
+
 
 .divide-preview-list {
   background: var(--bg-secondary);
@@ -2296,6 +2363,11 @@ body::before {
   min-width: 180px;
   text-align: center;
   user-select: none;
+  cursor: pointer;
+  transition: color var(--transition-fast);
+}
+.week-label:hover {
+  color: var(--primary-400);
 }
 
 .calendar-container {
@@ -2479,6 +2551,20 @@ body::before {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.25);
   color: #ef4444;
+}
+
+.sync-badge.sync-available {
+  background: rgba(59, 130, 246, 0.12);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+.sync-badge.sync-unconfigured {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #f59e0b;
+  cursor: pointer;
 }
 
 .sync-badge.sync-conflict {
@@ -2739,8 +2825,8 @@ body::before {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-md);
   box-shadow: var(--glass-shadow);
-  padding: var(--space-3);
-  min-width: 200px;
+  padding: 12px;
+  min-width: 260px;
   z-index: 100;
   pointer-events: none;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
@@ -2759,7 +2845,7 @@ body::before {
 
 /* Tooltip internal layout */
 .block-lesson-tooltip .tooltip-header {
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: var(--text-secondary);
   text-transform: uppercase;
@@ -2776,24 +2862,27 @@ body::before {
 }
 
 .block-lesson-tooltip .tooltip-guard {
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-primary);
   text-align: left;
 }
 
 .block-lesson-tooltip .tooltip-time {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--text-tertiary);
   text-align: left;
 }
 
 .block-lesson-tooltip .tooltip-subject {
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   color: var(--status-amber);
   font-style: italic;
   text-align: left;
 }
+
+
+
 
 
 </style>
@@ -4195,7 +4284,9 @@ const defaultSyncConfig = {
   gistId: '',
   gistFilename: 'lifeguard_schedule.json',
   autoSync: true,
-  autoPushDelay: 25, // seconds
+  autoPushDelay: 25, // seconds — debounce before auto-pushing local edits
+  pollIntervalSeconds: 5, // how often to check the cloud for newer changes
+  stalePullThresholdSeconds: 60, // force a safe pull after changes pend this long
   syncRevision: 0, // app-level revision counter, incremented on each push
   lastSyncedAt: null,
   lastGistSyncTime: null,
@@ -4210,8 +4301,24 @@ let lastSyncedJSON = null;
 let isSyncLoading = false;
 let isSyncBusy = false; // Concurrency lock to prevent checkSync/autoPush overlap
 let syncDebounceTimer = null;
-let syncPollInterval = null;
+let syncPollTimeout = null; // self-scheduling poll timer (replaces fixed interval)
+const MAX_POLL_DELAY = 5 * 60 * 1000; // cap backoff at 5 minutes
+// Base poll cadence and staleness cap are user-configurable (in seconds) via
+// the sync settings; these getters convert to milliseconds with safe defaults.
+function basePollDelayMs() {
+  return (syncConfig.pollIntervalSeconds ?? 5) * 1000;
+}
+function stalePullThresholdMs() {
+  return (syncConfig.stalePullThresholdSeconds ?? 60) * 1000;
+}
+let currentPollDelay = basePollDelayMs();
+let rateLimitNotified = false; // so we only toast about rate-limiting once
 let lastPullTime = 0; // Timestamp of last successful pull, used for post-pull cooldown
+// Pull-starvation handling: when the cloud is newer but it isn't safe to
+// re-render (user mid-edit), we defer the pull and remember when we first
+// noticed, so a "staleness cap" can force the pull once it's safe.
+let remoteChangesPendingSince = null;
+let nextAutoPushAt = null; // timestamp (ms) when the next auto-push is scheduled to fire
 let conflictCloudTime = null;
 let lastLocalEditTime = localStorage.getItem('lifeguard_last_local_edit_time') || (syncConfig ? syncConfig.lastGistSyncTime : null);
 
@@ -4239,6 +4346,36 @@ function saveSyncConfig() {
   }
 }
 
+// Detect GitHub rate-limiting from a non-OK response. A bare 403 is NOT always
+// rate-limiting (GitHub also uses it for missing token scopes), so we only treat
+// 403 as rate-limit when remaining quota is 0 or a Retry-After header is present.
+// 429 is always rate-limiting. Returns a typed Error (err.isRateLimit = true,
+// err.retryAfter = seconds) or null if the response isn't a rate-limit.
+function rateLimitErrorFromResponse(response) {
+  const remaining = response.headers.get('X-RateLimit-Remaining');
+  const retryAfter = response.headers.get('Retry-After');
+  const isRateLimit =
+    response.status === 429 ||
+    (response.status === 403 && (remaining === '0' || retryAfter != null));
+  if (!isRateLimit) return null;
+
+  let waitSec = 0;
+  if (retryAfter != null) {
+    const parsed = parseInt(retryAfter, 10);
+    if (!isNaN(parsed)) waitSec = parsed;
+  } else {
+    const reset = response.headers.get('X-RateLimit-Reset');
+    if (reset != null) {
+      const resetMs = parseInt(reset, 10) * 1000;
+      if (!isNaN(resetMs)) waitSec = Math.max(0, Math.ceil((resetMs - Date.now()) / 1000));
+    }
+  }
+  const err = new Error('GitHub API rate limit reached. Sync will resume automatically.');
+  err.isRateLimit = true;
+  err.retryAfter = waitSec;
+  return err;
+}
+
 async function fetchGistAPI(token, gistId) {
   const headers = {
     'Authorization': `token ${token}`,
@@ -4246,6 +4383,8 @@ async function fetchGistAPI(token, gistId) {
   };
   const response = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
   if (!response.ok) {
+    const rlErr = rateLimitErrorFromResponse(response);
+    if (rlErr) throw rlErr;
     if (response.status === 404) throw new Error('Gist not found. Check your Gist ID.');
     if (response.status === 401) throw new Error('Unauthorized token. Check your GitHub Token.');
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -4274,6 +4413,8 @@ async function createGistAPI(token, filename, content) {
     body
   });
   if (!response.ok) {
+    const rlErr = rateLimitErrorFromResponse(response);
+    if (rlErr) throw rlErr;
     if (response.status === 401) throw new Error('Unauthorized token. Check your GitHub Token.');
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -4299,6 +4440,8 @@ async function updateGistAPI(token, gistId, filename, content) {
     body
   });
   if (!response.ok) {
+    const rlErr = rateLimitErrorFromResponse(response);
+    if (rlErr) throw rlErr;
     if (response.status === 401) throw new Error('Unauthorized token. Check your GitHub Token.');
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -4316,21 +4459,48 @@ if (typeof window !== 'undefined') {
   window.addEventListener('touchstart', updateActivity, { passive: true });
 }
 
-function isCloudVersionNewer(gist, cloudUpdatedAt) {
+// Read a gist file's full content. GitHub truncates file bodies over ~1 MB,
+// setting `truncated: true` and exposing the full body only at `raw_url`.
+// Secret-gist raw_urls carry their own capability hash and need no auth header.
+async function getGistFileContent(gist, filename) {
+  const file = gist && gist.files ? gist.files[filename] : null;
+  if (!file) return null;
+  if (file.truncated && file.raw_url) {
+    const response = await fetch(file.raw_url);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch full gist content: HTTP ${response.status}`);
+    }
+    return await response.text();
+  }
+  return file.content != null ? file.content : null;
+}
+
+async function isCloudVersionNewer(gist, cloudUpdatedAt) {
   const { gistFilename, syncRevision, lastGistSyncTime } = syncConfig;
-  const file = gist.files[gistFilename];
-  if (file && file.content) {
+  let content = null;
+  try {
+    content = await getGistFileContent(gist, gistFilename);
+  } catch (e) {
+    console.warn('Failed to read cloud content for revision check:', e);
+  }
+  if (content) {
     try {
-      const cloudData = JSON.parse(file.content);
+      const cloudData = JSON.parse(content);
       const cloudRevision = cloudData._syncRevision || 0;
       const localRevision = syncRevision || 0;
 
       if (cloudRevision > localRevision) {
         return true;
       }
-      if (cloudRevision === localRevision && localRevision > 0) {
-        return false;
-      }
+      // NOTE: We intentionally do NOT return false on revision equality.
+      // Each device increments its own counter, so two devices can both go
+      // 5 → 6 independently and reach the same revision with DIFFERENT content
+      // (e.g. after a forced-push conflict resolution). Declaring "in sync" on
+      // the counter alone would hide that divergence permanently. Instead we
+      // fall through to the timestamp comparison below: lastGistSyncTime is set
+      // to the cloud's exact updated_at after every push/pull, so equal
+      // revisions with identical content give cloudTime === localTime (not
+      // newer), while genuine divergence gives cloudTime > localTime.
     } catch (e) {
       console.warn('Failed to parse cloud content for revision check:', e);
     }
@@ -4362,6 +4532,34 @@ function isUserInteracting() {
   return isRecentlyActive || hasOpenPopup();
 }
 
+// Is it safe to apply a background pull right now? A pull re-renders the whole
+// app, so we must never do it while a dropdown/modal is open or a drag is in
+// progress — that would destroy the UI the user is working in. Outside those
+// hard blockers we normally wait for a brief lull in activity, but once remote
+// changes have been pending past the staleness threshold we pull at the next
+// non-destructive moment regardless of recent typing/mouse movement.
+// Update only the sync badge, not the whole app. Used for background status
+// changes that may occur while the user is editing — a full notify()/render
+// would rebuild app.innerHTML and destroy their in-progress input or dropdown.
+function notifyBadgeOnly() {
+  if (typeof window !== 'undefined' && typeof window.__refreshSyncBadge === 'function') {
+    window.__refreshSyncBadge();
+  }
+}
+
+function isSafeToPullNow() {
+  if (hasOpenPopup()) return false;
+  if (typeof document !== 'undefined' &&
+      document.querySelector('.dragging, .dragging-guard')) {
+    return false;
+  }
+  const pendingLongEnough =
+    remoteChangesPendingSince &&
+    (Date.now() - remoteChangesPendingSince) >= stalePullThresholdMs();
+  if (pendingLongEnough) return true;
+  return (Date.now() - lastUserActivityTime) >= 15000;
+}
+
 function handleVisibilityChange() {
   if (document.visibilityState === 'visible') {
     const now = Date.now();
@@ -4372,6 +4570,86 @@ function handleVisibilityChange() {
   }
 }
 
+// Cross-tab coordination: when another tab in this browser changes the sync
+// config or the synced baseline, the `storage` event fires in THIS tab.
+// We reload the persisted values into memory (free, no API call) and then
+// debounce + jitter a single cloud check so that N tabs don't stampede the
+// GitHub API at the same instant when one tab pushes.
+let storageSyncTimer = null;
+function handleStorageChange(e) {
+  if (!e || (e.key !== SYNC_CONFIG_KEY && e.key !== LAST_SYNCED_JSON_KEY)) return;
+  if (e.key === SYNC_CONFIG_KEY) {
+    syncConfig = loadSyncConfig();
+  } else if (e.key === LAST_SYNCED_JSON_KEY) {
+    lastSyncedJSON = loadLastSyncedJSON();
+  }
+  if (storageSyncTimer) clearTimeout(storageSyncTimer);
+  storageSyncTimer = setTimeout(() => {
+    storageSyncTimer = null;
+    if (
+      syncConfig.provider === 'github_gist' && syncConfig.githubToken &&
+      document.visibilityState === 'visible' &&
+      syncStatus !== 'syncing' && syncStatus !== 'conflict'
+    ) {
+      syncManager.checkSync();
+    }
+  }, 1000 + Math.floor(Math.random() * 2000));
+}
+
+// Increase the poll delay after a rate-limit error (exponential, capped),
+// honoring Retry-After when GitHub provides it. Toast once per backoff episode.
+function noteRateLimit(err) {
+  let next = Math.max(currentPollDelay * 2, basePollDelayMs() * 2);
+  if (err && err.retryAfter) {
+    next = Math.max(next, err.retryAfter * 1000);
+  }
+  currentPollDelay = Math.min(MAX_POLL_DELAY, next);
+  if (!rateLimitNotified) {
+    rateLimitNotified = true;
+    if (typeof showToast === 'function') {
+      showToast('GitHub rate limit reached — syncing less frequently until it clears.', 'info');
+    }
+  }
+}
+
+// Reset to the normal cadence after a successful API call.
+function clearRateLimitBackoff() {
+  const base = basePollDelayMs();
+  if (currentPollDelay !== base || rateLimitNotified) {
+    currentPollDelay = base;
+    rateLimitNotified = false;
+  }
+}
+
+function schedulePoll(delay) {
+  if (syncPollTimeout) clearTimeout(syncPollTimeout);
+  syncPollTimeout = setTimeout(runPollCycle, delay);
+}
+
+async function runPollCycle() {
+  syncPollTimeout = null;
+  // Stop the loop if sync was turned off (reinitialize restarts it).
+  if (!(syncConfig.provider === 'github_gist' && syncConfig.githubToken)) return;
+  try {
+    // We always run the lightweight check (even while the user is interacting)
+    // so newer cloud changes are detected promptly. checkSync itself decides
+    // whether it is safe to apply a pull now or whether to defer it and surface
+    // an "update available" badge instead. Skip only when hidden or mid-op.
+    // (Rate-limit backoff is handled by checkSync adjusting currentPollDelay.)
+    if (
+      document.visibilityState === 'visible' &&
+      syncStatus !== 'syncing' && syncStatus !== 'conflict'
+    ) {
+      await syncManager.checkSync();
+    }
+  } finally {
+    // Re-arm only if still enabled.
+    if (syncConfig.provider === 'github_gist' && syncConfig.githubToken) {
+      schedulePoll(currentPollDelay);
+    }
+  }
+}
+
 const syncManager = {
   getConfig() {
     return syncConfig;
@@ -4379,7 +4657,15 @@ const syncManager = {
 
   getStatus() {
     if (syncConfig.provider === 'none') return 'disabled';
+    // Provider is selected but credentials are missing — not actually syncing.
+    // Report this explicitly so the badge never misleadingly shows "Synced"
+    // (e.g. if the token/Gist ID were ever cleared).
+    if (syncConfig.provider === 'github_gist' &&
+        (!syncConfig.githubToken || !syncConfig.gistId)) {
+      return 'unconfigured';
+    }
     if (syncStatus === 'conflict') return 'conflict';
+    if (syncStatus === 'available') return 'available';
     if (syncStatus === 'error') return 'error';
     if (syncStatus === 'syncing') return 'syncing';
     
@@ -4393,6 +4679,20 @@ const syncManager = {
     return syncLastError;
   },
 
+  // Timestamp (ms) of the next scheduled auto-push, or null if none pending.
+  getNextAutoPushAt() {
+    return nextAutoPushAt;
+  },
+
+  // Upper-bound timestamp (ms) by which a deferred "update available" pull will
+  // auto-apply (the staleness cap). It may apply sooner if the user pauses, and
+  // is gated on a safe moment. Returns null when no remote changes are pending.
+  getUpdateAutoLoadAt() {
+    return remoteChangesPendingSince
+      ? remoteChangesPendingSince + stalePullThresholdMs()
+      : null;
+  },
+
   getLastLocalEditTime() {
     return lastLocalEditTime;
   },
@@ -4404,6 +4704,7 @@ const syncManager = {
   setConflictResolved() {
     syncStatus = 'idle';
     conflictCloudTime = null;
+    remoteChangesPendingSince = null;
   },
 
   updateConfig(updates) {
@@ -4455,26 +4756,24 @@ const syncManager = {
       clearTimeout(syncDebounceTimer);
       syncDebounceTimer = null;
     }
-    if (syncPollInterval) {
-      clearInterval(syncPollInterval);
-      syncPollInterval = null;
+    if (syncPollTimeout) {
+      clearTimeout(syncPollTimeout);
+      syncPollTimeout = null;
     }
+    // Reset poll cadence/backoff on every reinit.
+    currentPollDelay = basePollDelayMs();
+    rateLimitNotified = false;
 
-    // Reset busy state on reinit
+    // Reset busy/pending state on reinit
     syncStatus = 'idle';
     isSyncBusy = false;
+    remoteChangesPendingSince = null;
+    nextAutoPushAt = null;
 
     if (syncConfig.provider === 'github_gist' && syncConfig.githubToken) {
-      // Start background polling (every 5 seconds)
-      syncPollInterval = setInterval(() => {
-        // Pause background pulling if the user is actively interacting.
-        // This prevents sync pulls from closing dropdowns or disrupting edits.
-        if (isUserInteracting()) return;
-
-        if (document.visibilityState === 'visible' && syncStatus !== 'syncing' && syncStatus !== 'conflict') {
-          this.checkSync();
-        }
-      }, 5000);
+      // Start background polling. Uses a self-scheduling setTimeout (not a fixed
+      // interval) so the delay can back off when GitHub rate-limits us.
+      schedulePoll(currentPollDelay);
 
       // Only listen for visibility change (not raw focus, which fires too often)
       if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
@@ -4484,14 +4783,30 @@ const syncManager = {
         document.addEventListener('visibilitychange', handleVisibilityChange);
       }
 
+      // Cross-tab listener (remove-before-add to avoid stacking duplicates
+      // across repeated reinitialize() calls).
+      if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+        window.removeEventListener('storage', handleStorageChange);
+        window.addEventListener('storage', handleStorageChange);
+      }
+
       // Perform initial check/pull
       this.checkSync();
     } else {
       if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
         document.removeEventListener('visibilitychange', handleVisibilityChange);
       }
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('storage', handleStorageChange);
+      }
       lastSyncedJSON = null;
       saveLastSyncedJSON(null);
+      // Reset sync bookkeeping so re-enabling later (possibly to a different
+      // Gist) doesn't carry a stale revision/timestamp into conflict checks.
+      syncConfig.syncRevision = 0;
+      syncConfig.lastGistSyncTime = null;
+      syncConfig.lastSyncedAt = null;
+      saveSyncConfig();
       syncStatus = 'idle';
     }
   },
@@ -4505,6 +4820,10 @@ const syncManager = {
     if (syncConfig.autoSync) {
       // Cancel any pending debounce and restart
       if (syncDebounceTimer) clearTimeout(syncDebounceTimer);
+      const delayMs = (syncConfig.autoPushDelay ?? 25) * 1000;
+      // Record when the push is expected to fire so the badge can show a
+      // live countdown. (Only displayed while there are unsaved changes.)
+      nextAutoPushAt = Date.now() + delayMs;
       syncDebounceTimer = setTimeout(() => {
         syncDebounceTimer = null;
         // Only defer if a dropdown/modal is literally open — a re-render would
@@ -4512,11 +4831,12 @@ const syncManager = {
         // because the user expects the push to happen after N seconds of their
         // last edit, not N seconds of total inactivity.
         if (hasOpenPopup()) {
-          this.handleStoreUpdate(); // reschedule
+          this.handleStoreUpdate(); // reschedule (resets nextAutoPushAt)
           return;
         }
+        nextAutoPushAt = null;
         this.autoPush();
-      }, (syncConfig.autoPushDelay || 25) * 1000);
+      }, delayMs);
     }
   },
 
@@ -4532,29 +4852,33 @@ const syncManager = {
     try {
       syncLastError = null;
       const gist = await fetchGistAPI(githubToken, gistId);
+      // Reached the API successfully — restore the normal poll cadence.
+      clearRateLimitBackoff();
       const cloudUpdatedAt = gist.updated_at;
 
       // Determine if cloud is newer
-      const cloudIsNewer = isCloudVersionNewer(gist, cloudUpdatedAt);
+      const cloudIsNewer = await isCloudVersionNewer(gist, cloudUpdatedAt);
 
       if (!cloudIsNewer) {
-        // Cloud is older or same as local — no pull needed.
-        // If we previously had a transient error, clear it now since we
-        // successfully reached the cloud.
-        if (syncStatus === 'error') {
+        // Cloud is older or same as local — no pull needed. Clear any prior
+        // transient error or pending "update available" state, since we are
+        // now in sync with the cloud.
+        if (syncStatus === 'error' || syncStatus === 'available') {
           syncStatus = 'idle';
           syncLastError = null;
-          isSyncLoading = true;
-          notify();
-          isSyncLoading = false;
+          remoteChangesPendingSince = null;
+          // Badge-only update so we don't re-render over an in-progress edit.
+          notifyBadgeOnly();
         }
         isSyncBusy = false;
         return;
       }
 
-      // Cloud IS newer — decide how to handle it
+      // Cloud IS newer — decide how to handle it.
+      // Use (content || truncated) so a >1 MB file (whose inline content is
+      // empty) is still recognized as existing; pull() fetches the full body.
       const file = gist.files[gistFilename];
-      if (file && file.content) {
+      if (file && (file.content || file.truncated)) {
         const currentJSON = store.exportSyncData();
         const isDirty = lastSyncedJSON !== null && currentJSON !== lastSyncedJSON;
 
@@ -4591,22 +4915,37 @@ const syncManager = {
             return; // pull() already released isSyncBusy
           }
         } else if (!isDirty) {
-          // Local is clean — auto-pull
-          // Release isSyncBusy before calling pull() — pull() acquires it.
-          isSyncBusy = false;
-          await this.pull(gist);
-          return; // pull() already released isSyncBusy
+          // Local is clean and cloud is newer. Pull only if it's safe to
+          // re-render right now (option 1: detect-but-defer). If the user is
+          // mid-edit, mark the changes as "available" and surface a badge they
+          // can click; the staleness cap inside isSafeToPullNow() will let a
+          // pull through automatically once it's safe (option 2).
+          if (isSafeToPullNow()) {
+            remoteChangesPendingSince = null;
+            // Release isSyncBusy before calling pull() — pull() acquires it.
+            isSyncBusy = false;
+            await this.pull(gist);
+            return; // pull() already released isSyncBusy
+          }
+          if (!remoteChangesPendingSince) remoteChangesPendingSince = Date.now();
+          if (syncStatus !== 'available') {
+            syncStatus = 'available';
+            // Badge-only update — a full re-render here would disrupt the very
+            // edit that made it unsafe to pull in the first place.
+            notifyBadgeOnly();
+          }
         } else {
-          // Both sides changed — show conflict (only if not already showing)
+          // Both sides changed — flag a conflict (only if not already showing).
           if (syncStatus !== 'conflict') {
             syncStatus = 'conflict';
             conflictCloudTime = cloudUpdatedAt;
-            // Notify UI without triggering sync
-            isSyncLoading = true;
-            notify();
-            isSyncLoading = false;
-            if (typeof window.__showConflictModal === 'function') {
-              // Only show if one isn't already visible
+            // Badge-only update; the conflict badge is clickable to open the
+            // resolution modal. Auto-open the modal only when it's safe — i.e.
+            // not while the user is mid-edit — so we don't steal focus or
+            // re-render over their work. If deferred, the staleness/poll cycle
+            // will open it once safe.
+            notifyBadgeOnly();
+            if (isSafeToPullNow() && typeof window.__showConflictModal === 'function') {
               if (!document.getElementById('sync-conflict-overlay')) {
                 window.__showConflictModal(cloudUpdatedAt, lastLocalEditTime, syncConfig.lastGistSyncTime);
               }
@@ -4620,6 +4959,7 @@ const syncManager = {
       }
     } catch (e) {
       console.error('Sync check failed:', e);
+      if (e && e.isRateLimit) noteRateLimit(e);
       syncStatus = 'error';
       syncLastError = e.message;
       // Notify UI without triggering sync
@@ -4646,18 +4986,21 @@ const syncManager = {
     try {
       syncLastError = null;
       const gist = fetchedGist || await fetchGistAPI(githubToken, gistId);
-      const file = gist.files[gistFilename];
+      // getGistFileContent handles >1 MB truncated files by fetching raw_url.
+      const content = await getGistFileContent(gist, gistFilename);
 
-      if (file && file.content) {
+      if (content) {
         // isSyncLoading stays true during import — importData calls notify()
         // internally, and handleStoreUpdate must be blocked
-        const result = store.importData(file.content);
+        const result = store.importData(content);
 
         if (result.success) {
           syncConfig.lastSyncedAt = new Date().toISOString();
           syncConfig.lastGistSyncTime = gist.updated_at;
           saveSyncConfig();
           syncStatus = 'idle';
+          // We've applied the cloud version — no changes are pending anymore.
+          remoteChangesPendingSince = null;
           if (typeof showToast === 'function') showToast('Schedule synced from cloud!', 'success');
         } else {
           throw new Error(`Import failed: ${result.error}`);
@@ -4667,6 +5010,7 @@ const syncManager = {
       }
     } catch (e) {
       console.error('Sync pull failed:', e);
+      if (e && e.isRateLimit) noteRateLimit(e);
       syncStatus = 'error';
       syncLastError = e.message;
       if (typeof showToast === 'function') showToast(`Pull failed: ${e.message}`, 'error');
@@ -4708,6 +5052,8 @@ const syncManager = {
 
     const { githubToken, gistId, gistFilename } = syncConfig;
 
+    // A push is starting — no countdown to show anymore.
+    nextAutoPushAt = null;
     syncStatus = 'syncing';
     isSyncLoading = true;
     notify();
@@ -4732,6 +5078,7 @@ const syncManager = {
       if (typeof showToast === 'function') showToast('Schedule saved to cloud!', 'success');
     } catch (e) {
       console.error('Sync push failed:', e);
+      if (e && e.isRateLimit) noteRateLimit(e);
       syncStatus = 'error';
       syncLastError = e.message;
       if (typeof showToast === 'function') showToast(`Push failed: ${e.message}`, 'error');
@@ -4755,14 +5102,20 @@ const syncManager = {
     if (!isDirty) return;
 
     // Before pushing, check if the cloud has been updated by another device.
-    // This prevents silently overwriting changes from another device.
+    // This catches the common case of another device having pushed since our
+    // last sync. NOTE: a residual cross-device race remains and cannot be
+    // closed on the client — between this freshness check and the PATCH in
+    // push(), another device could write the gist, and GitHub's gist PATCH has
+    // no If-Match/etag optimistic-concurrency support, so it is last-write-wins.
+    // Truly eliminating this needs a server-side store with conditional writes.
     isSyncBusy = true;
     try {
       const { githubToken, gistId } = syncConfig;
       const gist = await fetchGistAPI(githubToken, gistId);
+      clearRateLimitBackoff();
       const cloudUpdatedAt = gist.updated_at;
 
-      const cloudIsNewer = isCloudVersionNewer(gist, cloudUpdatedAt);
+      const cloudIsNewer = await isCloudVersionNewer(gist, cloudUpdatedAt);
       if (cloudIsNewer) {
         isSyncBusy = false;
         syncStatus = 'conflict';
@@ -4779,6 +5132,7 @@ const syncManager = {
       }
     } catch (e) {
       console.error('Pre-push cloud check failed:', e);
+      if (e && e.isRateLimit) noteRateLimit(e);
       isSyncBusy = false;
       // If we can't verify the cloud state, skip this push attempt.
       // The next poll cycle will handle it.
@@ -4875,10 +5229,17 @@ function showToast(message, type = 'info', duration = 4000) {
 
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
-  toast.innerHTML = `
-    <span class="toast-icon">${icons[type] || 'ℹ'}</span>
-    <span class="toast-message">${message}</span>
-  `;
+  // Build with textContent (not innerHTML) so a message containing user data
+  // (guard names, notes, etc.) can never inject markup. This protects every
+  // showToast() call site at once.
+  const iconSpan = document.createElement('span');
+  iconSpan.className = 'toast-icon';
+  iconSpan.textContent = icons[type] || 'ℹ';
+  const messageSpan = document.createElement('span');
+  messageSpan.className = 'toast-message';
+  messageSpan.textContent = message;
+  toast.appendChild(iconSpan);
+  toast.appendChild(messageSpan);
 
   c.appendChild(toast);
 
@@ -6179,13 +6540,28 @@ function parseTeamUpCSV(text, state) {
  */
 
 
+const TEAMUP_COLORS = {
+  1: '#f2665b', 2: '#cf2424', 3: '#a01a1a', 4: '#7e3838',
+  5: '#ca7609', 6: '#f16c20', 7: '#f58a4b', 8: '#d2b53b',
+  9: '#d96fbf', 10: '#b84e9d', 11: '#9d3283', 12: '#7a0f60',
+  13: '#542382', 14: '#7742a9', 15: '#8763ca', 16: '#b586e2',
+  17: '#668cb3', 18: '#4770d8', 19: '#2951b9', 20: '#133897',
+  21: '#1a5173', 22: '#1a699c', 23: '#0080a6', 24: '#4aaace',
+  25: '#88b347', 26: '#5a8121', 27: '#2d850e', 28: '#176413',
+  29: '#0f4c30', 30: '#386651', 31: '#00855b', 32: '#4fb5a1',
+  33: '#553711', 34: '#724f22', 35: '#9c6013', 36: '#f6c811',
+  37: '#ce1212', 38: '#b20d47', 39: '#d8135a', 40: '#e81f78',
+  41: '#f5699a', 42: '#5c1c1c', 43: '#a55757', 44: '#c37070',
+  45: '#000000', 46: '#383838', 47: '#757575', 48: '#a3a3a3'
+};
+
 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 /**
  * Fetches all subcalendars for a given TeamUp calendar.
  * @param {string} apiKey - The TeamUp API token.
  * @param {string} calendarKey - The TeamUp calendar key.
- * @returns {Promise<Object>} Map of subcalendar ID to name, e.g. { 12345: 'Elena', 67890: 'Ian' }
+ * @returns {Promise<Object>} Map of subcalendar ID to name and color, e.g. { 12345: { name: 'Elena', color: '#88b347' } }
  */
 async function fetchSubcalendars(apiKey, calendarKey) {
   const url = `https://api.teamup.com/${calendarKey}/subcalendars`;
@@ -6205,7 +6581,9 @@ async function fetchSubcalendars(apiKey, calendarKey) {
   const data = await response.json();
   const map = {};
   for (const sub of data.subcalendars) {
-    map[sub.id] = sub.name;
+    const colorId = sub.color;
+    const hex = TEAMUP_COLORS[colorId] || '#668cb3';
+    map[sub.id] = { name: sub.name, color: hex };
   }
   return map;
 }
@@ -6321,12 +6699,16 @@ async function syncTeamUpEvents(apiKey, calendarKey, selectedWeek, guards) {
 
     // Resolve subcalendar IDs to names
     const subcalendarIds = event.subcalendar_ids || [];
+    const guardColors = {};
 
     for (const subId of subcalendarIds) {
-      const calendarName = subcalendarMap[subId] || `Unknown (${subId})`;
+      const subInfo = subcalendarMap[subId];
+      const calendarName = subInfo ? subInfo.name : `Unknown (${subId})`;
+      const calendarColor = subInfo ? subInfo.color : '#668cb3';
 
       const rawEvent = {
         calendarName,
+        color: calendarColor,
         day,
         startTime,
         durationMinutes,
@@ -6338,6 +6720,7 @@ async function syncTeamUpEvents(apiKey, calendarKey, selectedWeek, guards) {
 
       const matchedGuard = findGuardMatch(calendarName, guards);
       if (matchedGuard) {
+        guardColors[matchedGuard.id] = calendarColor;
         lessons.push({
           guardId: matchedGuard.id,
           day,
@@ -6353,11 +6736,27 @@ async function syncTeamUpEvents(apiKey, calendarKey, selectedWeek, guards) {
     }
   }
 
+  // Accumulate all auto-matched colors
+  const finalGuardColors = {};
+  for (const event of events) {
+    const subcalendarIds = event.subcalendar_ids || [];
+    for (const subId of subcalendarIds) {
+      const subInfo = subcalendarMap[subId];
+      if (subInfo) {
+        const matchedGuard = findGuardMatch(subInfo.name, guards);
+        if (matchedGuard) {
+          finalGuardColors[matchedGuard.id] = subInfo.color;
+        }
+      }
+    }
+  }
+
   return {
     lessons,
     unmatched: Array.from(unmatchedSet),
     rawEvents,
-    skippedCount
+    skippedCount,
+    guardColors: finalGuardColors
   };
 }
 
@@ -6379,6 +6778,21 @@ async function syncTeamUpEvents(apiKey, calendarKey, selectedWeek, guards) {
 // ════════════════════════════════════════════════════════════
 
 const app = document.getElementById('app');
+
+// Escape user-controlled text before interpolating it into HTML strings that
+// are assigned via innerHTML. Covers both element-content and quoted-attribute
+// contexts (escapes & < > " '). Use this for any value that originates from
+// user input (guard names, lesson/block notes, imported CSV names, etc.).
+function escapeHtml(value) {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 let selectedGuardId = 'all';
 let selectedReadOnlyTab = 'rotation';
 const selectedBlockIds = new Set();
@@ -6390,6 +6804,15 @@ function getMonday(d) {
   const day = date.getDay();
   const diff = date.getDate() - day + (day === 0 ? -6 : 1);
   return new Date(date.setDate(diff));
+}
+
+function hexToRgba(hex, alpha) {
+  if (!hex || !hex.startsWith('#')) return `rgba(255, 255, 255, ${alpha})`;
+  const cleanHex = hex.replace('#', '');
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 function extractBlockIdFromAssignmentKey(key) {
@@ -6459,9 +6882,46 @@ function hasLessonConflict(lesson, state) {
 const initialWeek = store.getState().selectedWeek;
 let currentWeekStart = initialWeek ? new Date(initialWeek + 'T00:00:00') : getMonday(new Date());
 
+// "Universal emoji" is a DEVICE-LOCAL preference (not part of synced settings),
+// so a Win7 machine can opt in without the choice syncing to or being
+// overwritten by other devices. Stored under its own localStorage key.
+const UNIVERSAL_EMOJI_KEY = 'lifeguard-universal-emoji';
+
+function isUniversalEmojiOn() {
+  try {
+    return localStorage.getItem(UNIVERSAL_EMOJI_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+}
+
+// Apply the universal-emoji preference: toggle a body class (which swaps in an
+// emoji webfont via --font-family) and lazily load the font the first time it's
+// enabled. Idempotent, so it's safe to call on every render.
+function applyEmojiMode() {
+  if (typeof document === 'undefined' || !document.body) return;
+  const on = isUniversalEmojiOn();
+  document.body.classList.toggle('universal-emoji', on);
+  if (on && !document.getElementById('universal-emoji-font')) {
+    const link = document.createElement('link');
+    link.id = 'universal-emoji-font';
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap';
+    document.head.appendChild(link);
+  }
+}
+
+window.__toggleUniversalEmoji = (on) => {
+  try {
+    localStorage.setItem(UNIVERSAL_EMOJI_KEY, on ? '1' : '0');
+  } catch (e) { /* ignore storage errors */ }
+  applyEmojiMode();
+};
+
 function render() {
   const state = store.getState();
-  
+  applyEmojiMode();
+
   // Save scroll positions safely
   const hasQuerySelector = typeof document !== 'undefined' && typeof document.querySelector === 'function';
   const calendarBody = hasQuerySelector ? document.querySelector('.calendar-body') : null;
@@ -6507,6 +6967,7 @@ function render() {
     <div class="main-content">
       ${renderActiveTab(state)}
     </div>
+    ${state.activeTab === 'rotation' && selectedBlockIds.size > 0 ? renderFloatingSelectionBar(state) : ''}
   `;
   attachGlobalEvents(state);
 
@@ -6615,16 +7076,48 @@ function renderSyncBadge(state) {
     icon = '🔵';
     label = 'Unsaved Changes';
     tooltip = 'Local edits will be saved to the cloud automatically.';
+    const nextAt = typeof syncManager.getNextAutoPushAt === 'function' ? syncManager.getNextAutoPushAt() : null;
+    if (nextAt) {
+      const remaining = Math.max(0, Math.ceil((nextAt - Date.now()) / 1000));
+      if (remaining > 0) {
+        const mm = Math.floor(remaining / 60);
+        const ss = remaining % 60;
+        const t = mm > 0 ? `${mm}:${String(ss).padStart(2, '0')}` : `${ss}s`;
+        label = `Saving in ${t}`;
+      } else {
+        label = 'Saving...';
+      }
+    }
   } else if (status === 'error') {
     badgeClass = 'sync-error';
     icon = '🔴';
     label = 'Sync Error';
     tooltip = `Error during last sync: ${syncManager.getLastError() || 'Unknown error'}`;
+  } else if (status === 'available') {
+    badgeClass = 'sync-available';
+    icon = '⬇️';
+    label = 'Update Available';
+    tooltip = 'Newer changes are available in the cloud. They will load automatically at the next safe moment, or click to load them now.';
+    const loadAt = typeof syncManager.getUpdateAutoLoadAt === 'function' ? syncManager.getUpdateAutoLoadAt() : null;
+    if (loadAt) {
+      const remaining = Math.max(0, Math.ceil((loadAt - Date.now()) / 1000));
+      if (remaining > 0) {
+        const mm = Math.floor(remaining / 60);
+        const ss = remaining % 60;
+        const t = mm > 0 ? `${mm}:${String(ss).padStart(2, '0')}` : `${ss}s`;
+        label = `Update in ${t}`;
+      }
+    }
   } else if (status === 'conflict') {
     badgeClass = 'sync-conflict';
     icon = '⚠️';
     label = 'Conflict';
     tooltip = 'Sync Conflict! Cloud version is newer. Click to resolve.';
+  } else if (status === 'unconfigured') {
+    badgeClass = 'sync-unconfigured';
+    icon = '⚠️';
+    label = 'Sync Not Configured';
+    tooltip = 'GitHub Gist sync is selected but the Personal Access Token and/or Gist ID are missing. Click to open sync settings.';
   }
 
   return `
@@ -6634,6 +7127,50 @@ function renderSyncBadge(state) {
       </span>
     </div>
   `;
+}
+
+// Surgically update ONLY the sync badge without a full re-render. The store
+// calls this when a background poll changes sync status (e.g. "update
+// available") so the badge can refresh while the user is mid-edit, without
+// app.innerHTML rebuilding the page and destroying their input or dropdown.
+window.__refreshSyncBadge = () => {
+  if (typeof document === 'undefined') return;
+  // The sync dropdown is rendered as a child of the badge container, so
+  // replacing the container would destroy an open dropdown (closing it on every
+  // countdown tick). Skip the refresh while the dropdown is open; the next tick
+  // resumes once it's closed.
+  if (document.querySelector('.sync-dropdown')) return;
+  const container = document.querySelector('.sync-badge-container');
+  if (!container) return;
+  const html = renderSyncBadge(store.getState());
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  const fresh = tmp.firstElementChild;
+  if (fresh) {
+    container.replaceWith(fresh);
+  } else {
+    container.remove();
+  }
+};
+
+// Tick the sync badge once per second so the "Saving in Ns" / "Update in Ns"
+// countdowns stay live, updating only the badge (no full re-render that would
+// disrupt editing).
+if (typeof window !== 'undefined' && typeof window.setInterval === 'function') {
+  window.setInterval(() => {
+    if (typeof syncManager === 'undefined') return;
+    const status = syncManager.getStatus();
+    const counting =
+      (status === 'dirty' &&
+        typeof syncManager.getNextAutoPushAt === 'function' &&
+        syncManager.getNextAutoPushAt()) ||
+      (status === 'available' &&
+        typeof syncManager.getUpdateAutoLoadAt === 'function' &&
+        syncManager.getUpdateAutoLoadAt());
+    if (counting && window.__refreshSyncBadge) {
+      window.__refreshSyncBadge();
+    }
+  }, 1000);
 }
 
 function renderNavBar(state) {
@@ -6681,6 +7218,7 @@ function renderNavBar(state) {
 function renderSubNav(state) {
   const days = store.getDays();
   const crewOptions = ['AM', 'PM', 'Both'];
+  const daySelectorDisabled = state.activeTab === 'schedule' || state.activeTab === 'lessons';
 
   return `
     <div class="sub-nav">
@@ -6689,8 +7227,10 @@ function renderSubNav(state) {
           ${days.map(d => {
             const { open, close } = store.getOpenCloseGuardCountForDay(d, state.selectedWeek);
             const hasCounts = open > 0 || close > 0;
+            const showActive = !daySelectorDisabled && state.selectedDay === d;
             return `
-              <button class="day-chip ${state.selectedDay === d ? 'active' : ''}"
+              <button class="day-chip ${showActive ? 'active' : ''}"
+                      ${daySelectorDisabled ? 'style="pointer-events: none;"' : ''}
                       data-day="${d}" id="day-chip-${d}">
                 ${d.slice(0, 3)}
                 ${hasCounts ? `
@@ -6707,7 +7247,7 @@ function renderSubNav(state) {
 
       <div class="week-navigator" style="display:flex; align-items:center; gap:8px; flex: 0 0 auto; justify-content: center;">
         <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(-7)" title="Previous Week">◀</button>
-        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);">${formatWeekLabel(currentWeekStart)}</span>
+        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);" onclick="window.__navigateToCurrentWeek()" title="Go to Current Week">${formatWeekLabel(currentWeekStart)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(7)" title="Next Week">▶</button>
       </div>
 
@@ -6860,11 +7400,11 @@ function renderGuardRow(guard, days, state) {
       <td class="guard-name-cell">
         <div class="flex items-center gap-2">
           <div class="guard-avatar ${guard.crewSection.toLowerCase()}" style="width:24px;height:24px;font-size:0.65rem;">
-            ${guard.name.charAt(0).toUpperCase()}
+            ${escapeHtml(guard.name.charAt(0).toUpperCase())}
           </div>
           <div style="display:flex; flex-direction:column; gap:2px;">
             <div style="display:flex; align-items:center; gap:4px;">
-              <span>${guard.name}</span>
+              <span>${escapeHtml(guard.name)}</span>
               ${!isReadOnly ? `<button class="btn btn-ghost btn-icon btn-sm" title="Clear all shifts for this week" onclick="window.__clearGuardWeekShifts('${guard.id}', event)" style="width:14px;height:14px;font-size:0.65rem;padding:0;display:inline-flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🧹</button>` : ''}
             </div>
             ${renderTotalHoursBadge(guard.id, state)}
@@ -6963,13 +7503,10 @@ function renderGuardRoster(state) {
           ${state.guards.map(g => `
             <div class="guard-chip" id="guard-chip-${g.id}" draggable="${!state.isReadOnly ? 'true' : 'false'}" data-guard-id="${g.id}">
               <div class="guard-info">
-                <div class="guard-avatar ${g.crewSection.toLowerCase()}">
-                  ${g.name.charAt(0).toUpperCase()}
-                </div>
-                <div style="display:flex; flex-direction:column; gap:4px;">
-                  <div style="display:flex; align-items:center; gap:4px;">
-                    <span class="guard-name">${g.name}</span>
-                    <span class="crew-badge ${g.crewSection.toLowerCase()}">${g.crewSection}</span>
+                <div class="guard-chip-text" style="display:flex; flex-direction:column; gap:4px;">
+                  <div class="guard-chip-name-row" style="display:flex; align-items:center; gap:4px;">
+                    <span class="guard-name" title="${escapeHtml(g.name)}">${escapeHtml(g.name)}</span>
+                    <span class="crew-badge ${escapeHtml(g.crewSection.toLowerCase())}">${escapeHtml(g.crewSection)}</span>
                   </div>
                   ${renderTotalHoursBadge(g.id, state)}
                 </div>
@@ -7037,7 +7574,6 @@ function renderRotationTab(state) {
             </div>
           </div>
           <div class="card-body">
-            ${selectedBlockIds.size > 0 ? renderFloatingSelectionBar(state) : ''}
             ${blocks.length === 0 ? `
               <div class="empty-state">
                 <div class="empty-icon">🔄</div>
@@ -7084,11 +7620,14 @@ function renderFloatingSelectionBar(state) {
         <button class="btn btn-primary btn-sm" onclick="window.__openDivideModal()">
           ✂️ Re-divide
         </button>
+        <button class="btn btn-warning btn-sm" onclick="window.__clearSelectedBlockAssignments()">
+          🧹 Clear
+        </button>
         <button class="btn btn-danger btn-sm" onclick="window.__deleteSelectedBlocks()">
-          🗑 Delete
+          🗑️ Delete
         </button>
         <button class="btn btn-ghost btn-sm" onclick="window.__clearBlockSelection()">
-          ✕ Clear
+          ✕ Cancel
         </button>
       </div>
     </div>
@@ -7136,8 +7675,10 @@ function renderBlockGrid(blocks, state) {
                   const timeStr = `${formatTime(l.startTime)} – ${formatTime(minutesToTime(lEndEnd))}`;
                   return `
                     <div class="tooltip-item">
-                      <span class="tooltip-guard">${guardName}</span>
-                      <span class="tooltip-time">${timeStr}</span>
+                      <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
+                        <span class="tooltip-guard">${escapeHtml(guardName)}</span>
+                        <span class="tooltip-time">${timeStr}</span>
+                      </div>
                       ${l.subject ? `<span class="tooltip-subject">${l.subject}</span>` : ''}
                     </div>
                   `;
@@ -7161,15 +7702,6 @@ function renderBlockGrid(blocks, state) {
                 ${lessonIndicatorHTML}
               </div>
               ${isClosed ? '<span class="status-pill closed">Closed</span>' : ''}
-              <button class="btn btn-ghost btn-icon btn-sm split-row-btn" title="Split Block"
-                      onclick="window.__quickSplitBlock('${block.id}')">
-                ✂️
-              </button>
-              <button class="btn btn-ghost btn-icon btn-sm clear-row-btn" title="Clear Block Assignments"
-                      style="color: var(--status-amber); opacity: 0.7; margin-left: 2px;"
-                      onclick="window.__clearSingleBlockAssignments('${block.id}')">
-                🧹
-              </button>
             </div>
             <div class="block-assignments">
               ${isClosed ? '<span class="text-tertiary text-xs">No guards needed</span>' : 
@@ -7182,7 +7714,7 @@ function renderBlockGrid(blocks, state) {
                 <button onclick="window.__updateBlockGuardCount('${block.id}', ${Math.min(6, stands + 1)})" ${stands >= 6 ? 'disabled' : ''}>+</button>
               </div>
               <input type="text" class="block-note" placeholder="Add note..."
-                     value="${block.note || ''}"
+                     value="${escapeHtml(block.note || '')}"
                      onchange="window.__updateBlockNote('${block.id}', this.value)"
                      id="block-note-${block.id}" />
             </div>
@@ -7299,12 +7831,12 @@ function renderDailyTracker(state) {
                 <div class="stand-time-bar-container" id="tracker-bar-${g.id}">
                   <div class="stand-time-header">
                     <div class="guard-label flex items-center gap-2" style="flex-wrap: wrap;">
-                      <div class="guard-avatar ${g.crewSection.toLowerCase()}" style="width:20px;height:20px;font-size:0.55rem;">
-                        ${g.name.charAt(0)}
+                      <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
+                        ${escapeHtml(g.name.charAt(0))}
                       </div>
                       <div style="display:flex; flex-direction:column; gap:1px;">
                         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                          <span>${g.name}</span>
+                          <span>${escapeHtml(g.name)}</span>
                           ${st.shiftDurationMinutes > 0 ? `<span class="shift-duration">🕒 ${formatDuration(st.shiftDurationMinutes)}</span>` : ''}
                         </div>
                         ${shift ? `<span style="font-size:0.65rem; color:var(--text-tertiary); font-weight:500;">${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</span>` : ''}
@@ -7395,11 +7927,11 @@ function renderWeeklyTrackerTable(state) {
             <tr>
               <td class="guard-name">
                 <div class="flex items-center gap-2">
-                  <div class="guard-avatar ${g.crewSection.toLowerCase()}" style="width:20px;height:20px;font-size:0.55rem;">
-                    ${g.name.charAt(0)}
+                  <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
+                    ${escapeHtml(g.name.charAt(0))}
                   </div>
-                  ${g.name}
-                  <span class="crew-badge ${g.crewSection.toLowerCase()}" style="font-size:0.55rem;">${g.crewSection}</span>
+                  ${escapeHtml(g.name)}
+                  <span class="crew-badge ${escapeHtml(g.crewSection.toLowerCase())}" style="font-size:0.55rem;">${escapeHtml(g.crewSection)}</span>
                 </div>
               </td>
               ${dayCells}
@@ -7494,11 +8026,11 @@ function renderWeeklyRawTrackerTable(state) {
             <tr>
               <td class="guard-name">
                 <div class="flex items-center gap-2">
-                  <div class="guard-avatar ${g.crewSection.toLowerCase()}" style="width:20px;height:20px;font-size:0.55rem;">
-                    ${g.name.charAt(0)}
+                  <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
+                    ${escapeHtml(g.name.charAt(0))}
                   </div>
-                  ${g.name}
-                  <span class="crew-badge ${g.crewSection.toLowerCase()}" style="font-size:0.55rem;">${g.crewSection}</span>
+                  ${escapeHtml(g.name)}
+                  <span class="crew-badge ${escapeHtml(g.crewSection.toLowerCase())}" style="font-size:0.55rem;">${escapeHtml(g.crewSection)}</span>
                 </div>
               </td>
               ${dayCells}
@@ -7546,6 +8078,20 @@ function renderSettingsTab(state) {
     <div class="settings-grid">
       <div class="settings-section">
         <div class="card">
+          <div class="card-header"><h3>Appearance</h3></div>
+          <div class="card-body">
+            <div class="setting-item">
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="setting-universal-emoji" ${isUniversalEmojiOn() ? 'checked' : ''}
+                       onchange="window.__toggleUniversalEmoji(this.checked)" />
+                Use universal emoji (this device only)
+              </label>
+              <span class="setting-description">Render icons with a built-in emoji font instead of the operating system's. Turn this on if emoji show up as boxes or look wrong (common on older systems like Windows 7).</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
           <div class="card-header"><h3>Rotation Configuration</h3></div>
           <div class="card-body">
             <div class="setting-item">
@@ -7874,7 +8420,7 @@ function renderSettingsTab(state) {
                       <div style="display: flex; align-items: center; gap: 4px; flex-grow: 1;">
                         <span style="font-size: 0.7rem; color: var(--text-secondary);">Note:</span>
                         <input type="text" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; flex-grow: 1; height: auto;" 
-                               placeholder="Default note..." value="${win.note || ''}"
+                               placeholder="Default note..." value="${escapeHtml(win.note || '')}"
                                onchange="window.__updateDefaultBlockRule('${activeDay}', ${idx}, 'note', this.value)" />
                       </div>
                     </div>
@@ -7954,7 +8500,7 @@ function renderSettingsTab(state) {
                 <label>GitHub Personal Access Token (PAT)</label>
                 <div class="password-input-container">
                   <input type="password" class="form-input" id="sync-github-token" 
-                         value="${syncConfig.githubToken || ''}" style="flex: 1;" 
+                         value="${escapeHtml(syncConfig.githubToken || '')}" style="flex: 1;"
                          placeholder="ghp_..." onchange="window.__updateSyncConfig('githubToken', this.value)" />
                   <button class="btn btn-secondary" id="toggle-token-visibility" style="margin-left: 8px; font-size: 1rem; width: 42px; height: 38px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="window.__toggleTokenVisibility()">👁️</button>
                 </div>
@@ -7965,7 +8511,7 @@ function renderSettingsTab(state) {
                 <label>Gist ID</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
                   <input type="text" class="form-input" id="sync-gist-id" 
-                         value="${syncConfig.gistId || ''}" style="flex: 1;" 
+                         value="${escapeHtml(syncConfig.gistId || '')}" style="flex: 1;"
                          placeholder="e.g. 8a7b6c5d..." onchange="window.__updateSyncConfig('gistId', this.value)" />
                   <button class="btn btn-primary btn-sm" id="auto-create-gist-btn" 
                           style="height: 38px; white-space: nowrap; font-size: var(--font-xs);" 
@@ -7979,7 +8525,7 @@ function renderSettingsTab(state) {
               <div class="setting-item mt-4">
                 <label>File Name inside Gist</label>
                 <input type="text" class="form-input" id="sync-gist-filename" 
-                       value="${syncConfig.gistFilename || 'lifeguard_schedule.json'}" 
+                       value="${escapeHtml(syncConfig.gistFilename || 'lifeguard_schedule.json')}"
                        onchange="window.__updateSyncConfig('gistFilename', this.value)" />
               </div>
 
@@ -7994,10 +8540,26 @@ function renderSettingsTab(state) {
 
               <div class="setting-item mt-4">
                 <label>Auto-Push Delay (seconds)</label>
-                <input type="number" class="form-input" id="sync-auto-push-delay" 
-                       value="${syncConfig.autoPushDelay || 25}" min="2" max="300" 
+                <input type="number" class="form-input" id="sync-auto-push-delay"
+                       value="${syncConfig.autoPushDelay || 25}" min="2" max="300"
                        onchange="window.__updateSyncConfig('autoPushDelay', parseInt(this.value) || 25)" />
                 <span class="setting-description">How many seconds of inactivity to wait before pushing local changes to the cloud.</span>
+              </div>
+
+              <div class="setting-item mt-4">
+                <label>Cloud Check Interval (seconds)</label>
+                <input type="number" class="form-input" id="sync-poll-interval"
+                       value="${syncConfig.pollIntervalSeconds || 5}" min="3" max="120"
+                       onchange="window.__updateSyncConfig('pollIntervalSeconds', Math.min(120, Math.max(3, parseInt(this.value) || 5)))" />
+                <span class="setting-description">How often to check the cloud for newer changes. Lower is more responsive but uses more GitHub API requests.</span>
+              </div>
+
+              <div class="setting-item mt-4">
+                <label>Update Hold Time (seconds)</label>
+                <input type="number" class="form-input" id="sync-stale-threshold"
+                       value="${syncConfig.stalePullThresholdSeconds || 60}" min="10" max="3600"
+                       onchange="window.__updateSyncConfig('stalePullThresholdSeconds', Math.min(3600, Math.max(10, parseInt(this.value) || 60)))" />
+                <span class="setting-description">While you're editing, newer cloud changes wait behind an "Update Available" badge. After this many seconds they load automatically at the next safe moment (never over an open dialog or drag).</span>
               </div>
 
               <div style="display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap;">
@@ -8056,7 +8618,7 @@ function renderSettingsTab(state) {
           <div class="card-body">
             <div class="setting-item">
               <label>Developer API Key (Teamup-Token)</label>
-              <input type="password" class="form-input" value="${syncConfig.teamupApiKey || s.teamupApiKey || ''}" 
+              <input type="password" class="form-input" value="${escapeHtml(syncConfig.teamupApiKey || s.teamupApiKey || '')}"
                      id="setting-teamup-api-key" placeholder="Enter your Teamup developer API key"
                      onchange="window.__updateSyncConfig('teamupApiKey', this.value)" />
               <span class="setting-description">Your TeamUp developer API key. Get one free at <a href="https://teamup.com/api-keys" target="_blank" style="color: var(--accent-primary);">teamup.com/api-keys</a></span>
@@ -8064,7 +8626,7 @@ function renderSettingsTab(state) {
 
             <div class="setting-item mt-4">
               <label>Calendar Key</label>
-              <input type="text" class="form-input" value="${syncConfig.teamupCalendarKey || s.teamupCalendarKey || ''}" 
+              <input type="text" class="form-input" value="${escapeHtml(syncConfig.teamupCalendarKey || s.teamupCalendarKey || '')}"
                      id="setting-teamup-calendar-key" placeholder="e.g. ks1234567890abcdef"
                      onchange="window.__updateSyncConfig('teamupCalendarKey', this.value)" />
               <span class="setting-description">The 18-character key from your TeamUp calendar URL (after teamup.com/)</span>
@@ -8106,7 +8668,7 @@ function showShiftModal(guardId, day) {
   overlay.innerHTML = `
     <div class="modal">
       <div class="modal-header">
-        <h3>${guard.name} — ${day}</h3>
+        <h3>${escapeHtml(guard.name)} — ${day}</h3>
         <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
       </div>
       <div class="modal-body">
@@ -8433,7 +8995,7 @@ function renderLessonsTab(state) {
               <select class="form-input" id="lessons-guard-filter" style="height: 32px; padding: 0 8px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
                 <option value="all" ${filterGuardId === 'all' ? 'selected' : ''}>All Guards</option>
                 ${[...state.guards].sort((a,b)=>a.name.localeCompare(b.name)).map(g => `
-                  <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${g.name}</option>
+                  <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${escapeHtml(g.name)}</option>
                 `).join('')}
               </select>
             </div>
@@ -8509,6 +9071,9 @@ function renderLessonsTab(state) {
                         const guard = store.getGuardById(lesson.guardId);
                         const guardName = guard ? guard.name : 'Unknown Guard';
                         const crewClass = guard ? (guard.crewSection === 'AM' ? 'am-lesson' : 'pm-lesson') : 'neutral-lesson';
+                        const cardStyle = guard && guard.color
+                          ? `background: linear-gradient(135deg, ${hexToRgba(guard.color, 0.35)} 0%, ${hexToRgba(guard.color, 0.15)} 100%) !important; border-left: 3px solid ${guard.color} !important; color: #ffffff !important;`
+                          : '';
                         
                         return `
                           <div class="lesson-card ${crewClass}" 
@@ -8519,11 +9084,11 @@ function renderLessonsTab(state) {
                                ondragleave="window.__onLessonDragLeave(event)"
                                ondrop="window.__onLessonDrop(event, '${day}', '${lesson.startTime}')"
                                onclick="window.__openEditLessonModal('${lesson.id}', event)"
-                               style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto;"
-                               title="${guardName} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${lesson.subject}` : ''}${lesson.notes ? `\nNotes: ${lesson.notes}` : ''}">
+                               style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto; ${cardStyle}"
+                               title="${escapeHtml(guardName)} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${escapeHtml(lesson.subject)}` : ''}${lesson.notes ? `\nNotes: ${escapeHtml(lesson.notes)}` : ''}">
                             <div class="lesson-card-header" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.1; margin-bottom: 2px; color: var(--text-primary);">
-                              ${guardName}
-                              ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${lesson.subject}</div>` : ''}
+                              ${escapeHtml(guardName)}
+                              ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${escapeHtml(lesson.subject)}</div>` : ''}
                             </div>
                             <div class="lesson-card-meta" style="font-size: 0.65rem; color: rgba(255,255,255,0.85); display: flex; justify-content: space-between; align-items: flex-end;">
                               <span>${formatTime(lesson.startTime)}</span>
@@ -8561,8 +9126,8 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
   
   const day = lessonToEdit ? lessonToEdit.day : (prefilledDay || 'Monday');
   const duration = lessonToEdit ? lessonToEdit.durationMinutes : 30;
-  const subject = lessonToEdit ? (lessonToEdit.subject || '') : '';
-  const notes = lessonToEdit ? lessonToEdit.notes : '';
+  const subject = lessonToEdit ? escapeHtml(lessonToEdit.subject || '') : '';
+  const notes = lessonToEdit ? escapeHtml(lessonToEdit.notes) : '';
   
   const modalDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
   if (!state.settings?.lessonsExcludeSaturday) {
@@ -8877,7 +9442,7 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
     });
 
     dropdownList.innerHTML = guardsWithConflict.map(({ g, hasConflict, reason, details }) => {
-      const crewBadge = `<span class="badge" style="font-size: 0.6rem; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: bold; background: ${g.crewSection === 'AM' ? 'rgba(230, 168, 23, 0.15)' : 'rgba(124, 58, 237, 0.15)'}; color: ${g.crewSection === 'AM' ? 'var(--am-300)' : 'var(--pm-300)'}; margin-left: 8px;">${g.crewSection}</span>`;
+      const crewBadge = `<span class="badge" style="font-size: 0.6rem; padding: 2px 6px; border-radius: var(--radius-sm); font-weight: bold; background: ${g.crewSection === 'AM' ? 'rgba(230, 168, 23, 0.15)' : 'rgba(124, 58, 237, 0.15)'}; color: ${g.crewSection === 'AM' ? 'var(--am-300)' : 'var(--pm-300)'}; margin-left: 8px;">${escapeHtml(g.crewSection)}</span>`;
 
       const currentManualMode = store.getState().manualMode;
       if (currentManualMode) {
@@ -8885,19 +9450,19 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
           const displayLabel = reason === 'assigned' ? `${reason}: ${details}` : reason;
           return `
             <div class="dropdown-item conflict" 
-                 onclick="window.__selectLessonGuard('${g.id}', '${g.name}')"
+                 onclick="window.__selectLessonGuard('${g.id}')"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); transition: background 0.15s;"
-                 title="${g.name} has conflict: ${displayLabel}">
-              <span>${g.name} ${crewBadge}</span>
+                 title="${escapeHtml(g.name)} has conflict: ${displayLabel}">
+              <span>${escapeHtml(g.name)} ${crewBadge}</span>
               <span class="reason-badge" style="font-size: 0.65rem; color: var(--status-amber); background: var(--status-amber-bg); padding: 2px 6px; border-radius: 12px; margin-left: 8px; font-weight: 500;">${reason}</span>
             </div>
           `;
         } else {
           return `
             <div class="dropdown-item" 
-                 onclick="window.__selectLessonGuard('${g.id}', '${g.name}')"
+                 onclick="window.__selectLessonGuard('${g.id}')"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); transition: background 0.15s;">
-              <span>${g.name} ${crewBadge}</span>
+              <span>${escapeHtml(g.name)} ${crewBadge}</span>
             </div>
           `;
         }
@@ -8907,17 +9472,17 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
           return `
             <div class="dropdown-item ineligible" 
                  style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; cursor: not-allowed; border-bottom: 1px solid var(--border-subtle); color: var(--text-tertiary); opacity: 0.5; background: rgba(0,0,0,0.05);"
-                 title="${g.name} has conflict: ${displayLabel}">
-              <span>${g.name} ${crewBadge}</span>
+                 title="${escapeHtml(g.name)} has conflict: ${displayLabel}">
+              <span>${escapeHtml(g.name)} ${crewBadge}</span>
               <span class="reason-badge" style="font-size: 0.65rem; color: var(--status-red); background: var(--status-red-bg); padding: 2px 6px; border-radius: 12px; margin-left: 8px; font-weight: 500;">${reason}</span>
             </div>
           `;
         } else {
           return `
             <div class="dropdown-item" 
-                 onclick="window.__selectLessonGuard('${g.id}', '${g.name}')"
+                 onclick="window.__selectLessonGuard('${g.id}')"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; cursor: pointer; border-bottom: 1px solid var(--border-subtle); color: var(--text-primary); transition: background 0.15s;">
-              <span>${g.name} ${crewBadge}</span>
+              <span>${escapeHtml(g.name)} ${crewBadge}</span>
             </div>
           `;
         }
@@ -8948,8 +9513,13 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
     }
   });
 
-  window.__selectLessonGuard = (id, name) => {
+  window.__selectLessonGuard = (id) => {
     hiddenGuardId.value = id;
+    // Look the name up from the store rather than receiving it as a string
+    // argument — this keeps user-controlled names out of the inline handler,
+    // closing the JS-context injection vector. innerText is HTML-safe anyway.
+    const guard = store.getGuardById(id);
+    const name = guard ? guard.name : '';
     const selectedNameSpan = document.getElementById('lesson-guard-selected-name');
     if (selectedNameSpan) {
       selectedNameSpan.innerText = name;
@@ -8980,7 +9550,9 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
     }
 
     const guard = store.getGuardById(guardId);
-    const guardName = guard ? guard.name : 'Unknown Guard';
+    // Escaped at the source: guardName is used only inside validationDiv.innerHTML
+    // strings in this function, so escaping here covers all of them safely.
+    const guardName = guard ? escapeHtml(guard.name) : 'Unknown Guard';
     const parsedStart24 = parseTimeInput(timeStr);
     
     if (!parsedStart24) {
@@ -9029,11 +9601,11 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
         }
       } else if (conflictRes.reason === 'assigned') {
         if (currentManualMode) {
-          validationDiv.innerHTML = `<span style="color: var(--status-amber); font-weight: 500;">⚠️ Ignore Conflicts: Assigned to lifeguard rotation: ${conflictRes.details} (allowed).</span>`;
+          validationDiv.innerHTML = `<span style="color: var(--status-amber); font-weight: 500;">⚠️ Ignore Conflicts: Assigned to lifeguard rotation: ${escapeHtml(conflictRes.details)} (allowed).</span>`;
           saveBtn.disabled = false;
           if (copyToBtn) copyToBtn.disabled = false;
         } else {
-          validationDiv.innerHTML = `<span style="color: var(--status-red);">❌ Assigned to lifeguard rotation: ${conflictRes.details}.</span>`;
+          validationDiv.innerHTML = `<span style="color: var(--status-red);">❌ Assigned to lifeguard rotation: ${escapeHtml(conflictRes.details)}.</span>`;
           saveBtn.disabled = true;
           if (copyToBtn) copyToBtn.disabled = true;
         }
@@ -9188,6 +9760,18 @@ window.__navigateWeek = (daysOffset) => {
   render();
 };
 
+window.__navigateToCurrentWeek = () => {
+  const state = store.getState();
+  if (state.isReadOnly && state.sharedWeek) {
+    currentWeekStart = new Date(state.sharedWeek + 'T00:00:00');
+  } else {
+    currentWeekStart = getMonday(new Date());
+  }
+  store.setSelectedWeek(getWeekStr(currentWeekStart));
+  render();
+};
+
+
 window.__openAddLessonModal = () => {
   showLessonModal();
 };
@@ -9207,10 +9791,11 @@ window.__showReadOnlyLessonModal = (lessonId) => {
   if (!lesson) return;
 
   const guard = store.getGuardById(lesson.guardId);
-  const guardName = guard ? guard.name : 'Unknown Guard';
+  // Escaped at the source: all three are only interpolated into overlay.innerHTML.
+  const guardName = guard ? escapeHtml(guard.name) : 'Unknown Guard';
   const duration = lesson.durationMinutes;
-  const notes = lesson.notes || '- No notes provided -';
-  const subject = lesson.subject || '';
+  const notes = escapeHtml(lesson.notes) || '- No notes provided -';
+  const subject = escapeHtml(lesson.subject || '');
 
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
@@ -9378,6 +9963,68 @@ window.__toggleLessonTooltip = (e, blockId) => {
   }
 };
 
+function formatMinutesSince(minutes) {
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
+function getTimeSinceLastStandOrLesson(guardId, currentBlock, state) {
+  const day = state.selectedDay;
+  const week = state.selectedWeek;
+  const currentBlockStart = timeToMinutes(currentBlock.startTime);
+  
+  let mostRecentEnd = -1;
+  
+  // 1. Check all blocks for the day
+  const dayBlocks = store.getBlocksForDay(day, week);
+  dayBlocks.forEach(b => {
+    const bEnd = timeToMinutes(b.endTime);
+    
+    // Only consider blocks that ended at or before currentBlock's start time
+    if (bEnd <= currentBlockStart) {
+      const stands = b.guardCountOverride ?? state.settings?.standCount ?? 2;
+      const positions = getPositions(stands, state.settings?.excludeDoor);
+      
+      positions.forEach(pos => {
+        if (isStandPosition(pos)) {
+          const assignedGuardId = store.getAssignment(b.id, pos, week);
+          if (assignedGuardId && String(assignedGuardId) === String(guardId)) {
+            if (bEnd > mostRecentEnd) {
+              mostRecentEnd = bEnd;
+            }
+          }
+        }
+      });
+    }
+  });
+  
+  // 2. Check lessons for the day
+  const filteredLessons = getFilteredLessonsForWeek(state);
+  filteredLessons.forEach(l => {
+    if (l.day === day && String(l.guardId) === String(guardId)) {
+      const lStart = timeToMinutes(l.startTime);
+      const lEnd = l.endTime ? timeToMinutes(l.endTime) : (lStart + parseInt(l.durationMinutes || 0));
+      
+      // Only consider lessons that ended at or before currentBlock's start time
+      if (lEnd <= currentBlockStart) {
+        if (lEnd > mostRecentEnd) {
+          mostRecentEnd = lEnd;
+        }
+      }
+    }
+  });
+  
+  if (mostRecentEnd === -1) {
+    return null; // Never had any stand or lesson assignment earlier today
+  }
+  
+  return currentBlockStart - mostRecentEnd;
+}
+
 window.__toggleAssignmentDropdown = (e, blockId, position) => {
   e.stopPropagation();
   // Close any existing dropdowns
@@ -9445,33 +10092,56 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
   });
 
   guardsWithConflict.forEach(({ g, hasConflict, reason, isCurrent }) => {
+    const shift = store.getShift(g.id, day, state.selectedWeek);
+    const shiftStartHtml = shift ? `<span class="shift-start-badge">${formatTime(shift.startTime)}</span>` : '';
+    const leftContent = `<div style="display: flex; align-items: center; gap: 4px;">
+                           <span>${escapeHtml(g.name)}</span>
+                           ${shiftStartHtml}
+                         </div>`;
+
+
+    let timeSinceHtml = '';
+    const isAvailable = !hasConflict && !isCurrent;
+    if (isAvailable) {
+      const minutesSince = getTimeSinceLastStandOrLesson(g.id, block, state);
+      if (minutesSince !== null) {
+        timeSinceHtml = `<span class="time-since-indicator">🧊⏱️ ${formatMinutesSince(minutesSince)}</span>`;
+      }
+    }
+
     if (state.manualMode) {
       if (isCurrent) {
         html += `<div class="assignment-option ineligible" onclick="event.stopPropagation()">
-                   <span>${g.name}</span>
+                   ${leftContent}
                    <span class="reason-label">current</span>
                  </div>`;
       } else if (hasConflict) {
         html += `<div class="assignment-option conflict" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)" style="display: flex; justify-content: space-between; align-items: center;">
-                   <span>${g.name}</span>
+                   ${leftContent}
                    <span class="reason-label" style="font-size: 0.65rem; color: var(--status-amber); background: var(--status-amber-bg); padding: 2px 6px; border-radius: 12px; margin-left: 8px;">${reason}</span>
                  </div>`;
       } else {
-        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">${g.name}</div>`;
+        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">
+                   ${leftContent}
+                   ${timeSinceHtml}
+                 </div>`;
       }
     } else {
-      let isEligible = !hasConflict && !isCurrent;
-      let displayReason = isCurrent ? 'current' : reason;
-      if (isEligible) {
-        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">${g.name}</div>`;
+      if (isAvailable) {
+        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">
+                   ${leftContent}
+                   ${timeSinceHtml}
+                 </div>`;
       } else {
+        const displayReason = isCurrent ? 'current' : reason;
         html += `<div class="assignment-option ineligible" onclick="event.stopPropagation()">
-                   <span>${g.name}</span>
+                   ${leftContent}
                    <span class="reason-label">${displayReason}</span>
                  </div>`;
       }
     }
   });
+
 
   dropdown.innerHTML = html;
   
@@ -9593,14 +10263,14 @@ window.__showCSVMappingModal = (parseResult) => {
   const state = store.getState();
   const selectedWeek = state.selectedWeek;
   const sortedGuards = [...state.guards].sort((a, b) => a.name.localeCompare(b.name));
-  const guardsOptionsHtml = sortedGuards.map(g => `<option value="${g.id}">👤 ${g.name}</option>`).join('');
+  const guardsOptionsHtml = sortedGuards.map(g => `<option value="${g.id}">👤 ${escapeHtml(g.name)}</option>`).join('');
 
   const rowsHtml = parseResult.unmatched.map(name => {
     return `
       <div class="mapping-row" style="display: flex; align-items: center; justify-content: space-between; gap: 10px; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
-        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${name}</span>
-        <select class="form-input csv-mapping-select" data-csv-name="${name}" style="width: 220px; font-size: 0.85rem; height: 32px; padding: 0 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
-          <option value="create">🆕 Create new guard "${name}"</option>
+        <span style="font-weight: 600; color: var(--text-primary); font-size: 0.9rem;">${escapeHtml(name)}</span>
+        <select class="form-input csv-mapping-select" data-csv-name="${escapeHtml(name)}" style="width: 220px; font-size: 0.85rem; height: 32px; padding: 0 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
+          <option value="create">🆕 Create new guard "${escapeHtml(name)}"</option>
           <option value="skip">🚫 Skip these lessons</option>
           <optgroup label="Link to existing guard:">
             ${guardsOptionsHtml}
@@ -9675,6 +10345,22 @@ window.__showCSVMappingModal = (parseResult) => {
         const guard = store.addGuard(name, 'Both');
         nameToGuardIdMap[name] = guard.id;
       });
+
+      // Map subcalendar colors to linked/created guards
+      if (parseResult.rawEvents) {
+        const calendarColors = {};
+        parseResult.rawEvents.forEach(evt => {
+          if (evt.color) {
+            calendarColors[evt.calendarName] = evt.color;
+          }
+        });
+        Object.entries(nameToGuardIdMap).forEach(([calendarName, guardId]) => {
+          const color = calendarColors[calendarName];
+          if (color) {
+            store.updateGuard(guardId, { color });
+          }
+        });
+      }
 
       // Resolve lessons from rawEvents
       const resolvedLessons = [];
@@ -10026,6 +10712,9 @@ function renderSyncStatusDetails() {
 
   if (status === 'disabled') {
     statusText = 'Local Storage Mode. No cloud sync connected.';
+  } else if (status === 'unconfigured') {
+    statusText = '⚠️ Setup incomplete: GitHub Gist is selected but the Personal Access Token and/or Gist ID are missing. Enter them below to start syncing.';
+    color = '#f59e0b';
   } else if (status === 'synced') {
     statusText = 'Connected & Synced. Cloud and local state match.';
     color = 'var(--status-green, #10b981)';
@@ -10033,7 +10722,7 @@ function renderSyncStatusDetails() {
     statusText = 'Syncing data...';
     color = '#3b82f6';
   } else if (status === 'dirty') {
-    statusText = 'Local edits have not been pushed to GitHub yet (saving automatically in 3 seconds...).';
+    statusText = `Local edits have not been pushed to GitHub yet (saving automatically after ${config.autoPushDelay ?? 25} seconds of inactivity).`;
     color = '#f59e0b';
   } else if (status === 'error') {
     statusText = `Sync Error: ${error || 'Unknown error occurred.'}`;
@@ -10189,6 +10878,12 @@ window.__handleSyncBadgeClick = (event) => {
     window.__showConflictModal(cloudTime, localTime, lastSyncTime);
     return;
   }
+  if (status === 'available') {
+    // User explicitly asked to load the pending remote changes — pull now.
+    showToast('Loading latest changes from cloud...', 'info');
+    syncManager.pull();
+    return;
+  }
 
   // Toggle dropdown
   const existingDropdown = document.querySelector('.sync-dropdown');
@@ -10229,6 +10924,11 @@ window.__handleSyncBadgeClick = (event) => {
     statusIcon = '🔴';
     statusDetail = lastError || 'Unknown error during sync.';
     badgeClass = 'sync-error';
+  } else if (status === 'unconfigured') {
+    statusLabel = 'Setup Incomplete';
+    statusIcon = '⚠️';
+    statusDetail = 'Enter your GitHub token and Gist ID in Sync Settings to start syncing.';
+    badgeClass = 'sync-dirty';
   }
 
   const dropdown = document.createElement('div');
@@ -10666,6 +11366,21 @@ window.__clearSingleBlockAssignments = (blockId) => {
   showToast("Block assignments cleared", "info");
 };
 
+window.__clearSelectedBlockAssignments = () => {
+  const state = store.getState();
+  const week = state.selectedWeek;
+  const ids = Array.from(selectedBlockIds);
+  if (ids.length === 0) return;
+
+  if (confirm(`Are you sure you want to clear assignments for the ${ids.length} selected block(s)?`)) {
+    ids.forEach(blockId => {
+      store.clearBlockAssignments(blockId, week);
+    });
+    showToast(`Assignments cleared for ${ids.length} block(s)`, "info");
+  }
+};
+
+
 window.__deleteSelectedBlocks = () => {
   const state = store.getState();
   const day = state.selectedDay;
@@ -11077,6 +11792,12 @@ function attachGlobalEvents(state) {
       try {
         const parseResult = await syncTeamUpEvents(apiKey, calendarKey, state.selectedWeek, state.guards);
 
+        if (parseResult.guardColors) {
+          Object.entries(parseResult.guardColors).forEach(([guardId, color]) => {
+            store.updateGuard(guardId, { color });
+          });
+        }
+
         if (parseResult.lessons.length === 0 && parseResult.unmatched.length === 0) {
           let msg = 'No lessons found from TeamUp for the selected week.';
           if (parseResult.skippedCount > 0) {
@@ -11419,7 +12140,7 @@ function renderReadOnlyPortal(state) {
             <select class="form-input" id="read-only-guard-select" style="width: 100%; height:42px; font-size:1rem;">
               <option value="all" ${selectedGuardId === 'all' ? 'selected' : ''}>📋 Show All Rotation Blocks</option>
               ${sortedGuards.map(g => `
-                <option value="${g.id}" ${String(selectedGuardId) === String(g.id) ? 'selected' : ''}>👤 ${g.name} (${g.crewSection})</option>
+                <option value="${g.id}" ${String(selectedGuardId) === String(g.id) ? 'selected' : ''}>👤 ${escapeHtml(g.name)} (${escapeHtml(g.crewSection)})</option>
               `).join('')}
             </select>
           </div>
@@ -11542,7 +12263,7 @@ function renderReadOnlyBlocksGrid(blocks, state) {
                 </div>
                 ${block.note ? `
                   <div class="block-note-badge" title="Note" style="display: inline-block; font-size: 0.75rem; color: var(--text-secondary); margin-top: 4px;">
-                    📝 <i>${block.note}</i>
+                    📝 <i>${escapeHtml(block.note)}</i>
                   </div>
                 ` : ''}
               </div>
@@ -11584,7 +12305,7 @@ function renderReadOnlyGuardTimeline(guardId, day, blocks, state) {
           <div class="empty-state">
             <div class="empty-icon">🏖️</div>
             <h3>Off Duty</h3>
-            <p><strong>${guard.name}</strong> has no shift scheduled on ${day}.</p>
+            <p><strong>${escapeHtml(guard.name)}</strong> has no shift scheduled on ${day}.</p>
           </div>
         </div>
       </div>
@@ -11651,9 +12372,9 @@ function renderReadOnlyGuardTimeline(guardId, day, blocks, state) {
       <div class="card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
         <div class="flex items-center gap-2">
           <div class="guard-avatar ${guard.crewSection.toLowerCase()}" style="width:28px;height:28px;font-size:0.8rem;">
-            ${guard.name.charAt(0).toUpperCase()}
+            ${escapeHtml(guard.name.charAt(0).toUpperCase())}
           </div>
-          <h2 style="margin:0;">${guard.name}'s Timeline</h2>
+          <h2 style="margin:0;">${escapeHtml(guard.name)}'s Timeline</h2>
         </div>
         <span class="text-xs text-tertiary">
           Shift: <b>${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</b> 
@@ -11796,7 +12517,7 @@ function renderReadOnlyLessonsPortal(state) {
           <select class="form-input" id="read-only-lessons-guard-filter" style="height: 32px; padding: 0 8px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
             <option value="all" ${filterGuardId === 'all' ? 'selected' : ''}>All Guards</option>
             ${[...state.guards].sort((a,b)=>a.name.localeCompare(b.name)).map(g => `
-              <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${g.name}</option>
+              <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${escapeHtml(g.name)}</option>
             `).join('')}
           </select>
         </div>
@@ -11864,15 +12585,18 @@ function renderReadOnlyLessonsPortal(state) {
                           const guard = store.getGuardById(lesson.guardId);
                           const guardName = guard ? guard.name : 'Unknown Guard';
                           const crewClass = guard ? (guard.crewSection === 'AM' ? 'am-lesson' : 'pm-lesson') : 'neutral-lesson';
+                          const cardStyle = guard && guard.color
+                            ? `background: linear-gradient(135deg, ${hexToRgba(guard.color, 0.35)} 0%, ${hexToRgba(guard.color, 0.15)} 100%) !important; border-left: 3px solid ${guard.color} !important; color: #ffffff !important;`
+                            : '';
                           
                           return `
                             <div class="lesson-card ${crewClass} read-only" 
                                  onclick="window.__showReadOnlyLessonModal('${lesson.id}')"
-                                 style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto; cursor: pointer;"
-                                 title="${guardName} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${lesson.subject}` : ''}${lesson.notes ? `\nNotes: ${lesson.notes}` : ''}">
+                                 style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto; cursor: pointer; ${cardStyle}"
+                                 title="${escapeHtml(guardName)} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${escapeHtml(lesson.subject)}` : ''}${lesson.notes ? `\nNotes: ${escapeHtml(lesson.notes)}` : ''}">
                               <div class="lesson-card-header" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.1; margin-bottom: 2px; color: var(--text-primary);">
-                                ${guardName}
-                                ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${lesson.subject}</div>` : ''}
+                                ${escapeHtml(guardName)}
+                                ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${escapeHtml(lesson.subject)}</div>` : ''}
                               </div>
                               <div class="lesson-card-meta" style="font-size: 0.65rem; color: rgba(255,255,255,0.85); display: flex; justify-content: space-between; align-items: flex-end;">
                                 <span>${formatTime(lesson.startTime)}</span>
@@ -11944,6 +12668,8 @@ function attachReadOnlyLessonsPortalEvents(state) {
     });
   }
 }
+
+
 
 
 </script>
