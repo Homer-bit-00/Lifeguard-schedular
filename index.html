@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════════════════════════════
    Lifeguard Rotation Scheduler — Design System
@@ -669,7 +670,7 @@ body::before {
 }
 
 .guard-roster-panel {
-  width: 220px;
+  width: 180px;
   flex-shrink: 0;
 }
 
@@ -677,6 +678,11 @@ body::before {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  table-layout: fixed;
+}
+
+.weekly-grid th:first-child {
+  width: 118px;
 }
 
 .weekly-grid th {
@@ -697,7 +703,7 @@ body::before {
 }
 
 .weekly-grid .guard-name-cell {
-  padding: var(--space-3);
+  padding: var(--space-2) var(--space-3);
   font-size: var(--font-sm);
   font-weight: 500;
   white-space: nowrap;
@@ -705,7 +711,10 @@ body::before {
   left: 0;
   background: var(--bg-secondary);
   z-index: 1;
-  min-width: 120px;
+  width: 118px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .crew-section-header {
@@ -731,7 +740,8 @@ body::before {
 
 .shift-cell {
   min-width: 90px;
-  min-height: 48px;
+  min-height: 88px;
+  box-sizing: border-box;
   padding: var(--space-2);
   border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
@@ -742,7 +752,7 @@ body::before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .shift-cell:hover {
@@ -759,7 +769,7 @@ body::before {
 .shift-cell .shift-time {
   font-weight: 600;
   color: var(--text-primary);
-  font-size: var(--font-xs);
+  font-size: 0.82rem;
 }
 
 .shift-duration {
@@ -1194,13 +1204,88 @@ body::before {
 }
 
 .stand-time-bar-container {
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-2) var(--space-3);
   background: var(--bg-tertiary);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-1);
+}
+
+/* Let credit tooltips/popovers escape the card (which is overflow:hidden). */
+.daily-tracker-card { overflow: visible; }
+
+/* Daily tracker sort chips */
+.tracker-sort {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.tracker-sort-btn {
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.tracker-sort-btn:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.tracker-sort-btn.active {
+  background: var(--accent-primary, #3b82f6);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* ── Credit hover tooltip ───────────────────────────────── */
+.credit-tip { position: relative; display: inline-flex; align-items: center; cursor: help; }
+.credit-tip > .credit-pop {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 100;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.credit-tip:hover > .credit-pop,
+.credit-tip:focus-within > .credit-pop { opacity: 1; visibility: visible; }
+/* Right-anchored, multi-line variant for the overall percentage breakdown. */
+.credit-tip.credit-tip-right > .credit-pop {
+  left: auto;
+  right: 0;
+  bottom: auto;
+  top: calc(100% + 6px);
+  transform: none;
+  white-space: normal;
+  width: max-content;
+  max-width: 300px;
+  text-align: left;
+  line-height: 1.55;
+}
+.credit-pop .credit-pop-total {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 5px;
+  padding-top: 5px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .stand-time-header {
@@ -1214,9 +1299,10 @@ body::before {
   font-weight: 500;
 }
 
-.stand-time-header .percentage-label {
-  font-size: var(--font-sm);
+.percentage-label {
+  font-size: 1.2rem;
   font-weight: 700;
+  line-height: 1.1;
 }
 
 .stand-time-track {
@@ -1287,6 +1373,7 @@ body::before {
 .percentage-cell.green { background: var(--status-green-bg); color: var(--status-green); }
 .percentage-cell.amber { background: var(--status-amber-bg); color: var(--status-amber); }
 .percentage-cell.blue { background: var(--status-blue-bg); color: var(--status-blue); }
+.percentage-cell.red { background: var(--status-red-bg); color: var(--status-red); }
 .percentage-cell.none { color: var(--text-tertiary); }
 
 /* ─── Weekly Raw Time Table ────────────────────────────── */
@@ -1371,15 +1458,22 @@ body::before {
 
 /* ─── Settings Panel ───────────────────────────────────── */
 .settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--space-6);
+  column-count: 2;
+  column-gap: var(--space-6);
 }
 
+/* Sections are transparent wrappers so every card shares ONE balanced column
+   flow — cards pack into both columns instead of one column running long while
+   the other sits empty. */
 .settings-section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+  display: contents;
+}
+
+.settings-grid .card {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 0 0 var(--space-4) 0;
 }
 
 .setting-item {
@@ -1694,7 +1788,7 @@ body::before {
   }
 
   .settings-grid {
-    grid-template-columns: 1fr;
+    column-count: 1;
   }
 }
 
@@ -2349,6 +2443,94 @@ body::before {
   padding: var(--space-4) var(--space-6);
 }
 
+/* ── Lessons guard filter strip (replaces the Filter Guard dropdown) ── */
+.lesson-guard-strip {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  overflow-x: auto;
+  padding: 10px var(--space-6);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.lesson-guard-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 64px;
+  max-width: 130px;
+  padding: 6px 10px 7px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.lesson-guard-chip:hover {
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+.lesson-guard-chip.active {
+  border-color: var(--accent-primary, #3b82f6);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.lesson-guard-chip .lgc-name {
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
+}
+.lesson-guard-chip .lgc-pill {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--border-default);
+}
+.lesson-guard-chip .lgc-pill-all {
+  background: linear-gradient(90deg, #3b82f6, #2dd4a8, #9a6a3a);
+}
+
+/* ── Lesson hover popup ── */
+.lesson-hover-tip {
+  position: fixed;
+  display: none;
+  z-index: 9999;
+  min-width: 190px;
+  max-width: 280px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  pointer-events: none;
+}
+.lesson-hover-tip .lht-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 5px;
+}
+.lesson-hover-tip .lht-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.lesson-hover-tip .lht-row { margin-top: 3px; }
+.lesson-hover-tip .lht-dim { color: var(--text-tertiary); }
+
 .week-navigator {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-subtle);
@@ -2516,6 +2698,7 @@ body::before {
   border-radius: var(--radius-sm);
   transition: all var(--transition-fast);
   user-select: none;
+  white-space: nowrap;
 }
 
 .sync-badge.sync-disabled {
@@ -2652,6 +2835,8 @@ body::before {
   position: relative;
   display: inline-flex;
   align-items: center;
+  min-width: 150px;
+  justify-content: flex-start;
 }
 
 .sync-dropdown {
@@ -2885,6 +3070,84 @@ body::before {
 
 
 
+/* ─── Schedule Notes Editor ─────────────────────────────── */
+.notes-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-default);
+  border-bottom: none;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+.notes-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: var(--border-default);
+  margin: 2px 2px;
+}
+.notes-tool-btn {
+  min-width: 30px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.notes-tool-btn:hover { background: var(--bg-hover); }
+.notes-tool-btn.active {
+  background: var(--primary-600);
+  border-color: var(--primary-500);
+  color: #fff;
+}
+.notes-fontsize-select {
+  height: 30px;
+  padding: 0 6px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.notes-color-input {
+  width: 34px;
+  height: 30px;
+  padding: 2px;
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  cursor: pointer;
+}
+.notes-editor {
+  min-height: 120px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border-default);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  outline: none;
+}
+.notes-editor:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--primary-800);
+}
+.notes-editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-tertiary);
+  pointer-events: none;
+}
+
 </style>
 </head>
 <body>
@@ -2996,11 +3259,14 @@ const defaultState = {
   blockAssignments: {}, // key: `${blockId}-${position}` → guardId
   manualAssignments: {}, // key: `${blockId}-${position}` → true/false
   lessons: [],        // lesson entries
+  scheduleNotes: '',  // HTML string of rich-text notes shown below the schedule & appended to the exported PDF
+  dayNotes: {},       // per-day notes keyed by `${day}-${week}`, shown under the day in the exported PDF
   settings: { ...defaultSettings },
   selectedDay: 'Monday',
   selectedCrew: 'Both',
   activeTab: 'schedule',
   undoStack: [],
+  redoStack: [],
   lastSaved: null,
   isReadOnly: false,
   selectedFilterGuardId: 'all',
@@ -3012,6 +3278,11 @@ const defaultState = {
 };
 
 let state = loadState();
+
+// In-memory clipboards for copy/paste of a whole week or a single shift.
+let weekClipboard = null;
+let shiftClipboard = null;
+let guardWeekClipboard = null;
 
 function migrateBlockCreationWindows(win) {
   const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -3147,17 +3418,21 @@ function notify() {
   }
 }
 
-function pushUndo() {
-  const undoEntry = {
+function historySnapshot() {
+  return {
     blockAssignments: JSON.parse(JSON.stringify(state.blockAssignments)),
     manualAssignments: JSON.parse(JSON.stringify(state.manualAssignments || {})),
     rotationBlocks: JSON.parse(JSON.stringify(state.rotationBlocks)),
     lessons: JSON.parse(JSON.stringify(state.lessons || [])),
     shifts: JSON.parse(JSON.stringify(state.shifts || {}))
   };
+}
+
+function pushUndo() {
   state = {
     ...state,
-    undoStack: [...state.undoStack, undoEntry].slice(-10)
+    undoStack: [...state.undoStack, historySnapshot()].slice(-10),
+    redoStack: []
   };
 }
 
@@ -3574,6 +3849,32 @@ const store = {
     return state.blockAssignments[`${blockId}-${position}-${w}`] || state.blockAssignments[`${blockId}-${position}`] || null;
   },
 
+  // Clear a crew's AUTO (non-manual) assignments for a day, leaving user-locked
+  // picks untouched. Used before auto-assign so a freshly generated rotation
+  // fully replaces the old one (no stale assignment lingering on a position the
+  // new run left empty). crewSection null/'Both' clears all crews.
+  clearNonManualAssignments(day, crewSection, week) {
+    const w = week || state.selectedWeek;
+    const key = `${day}-${w}`;
+    const blocks = state.rotationBlocks[key] || state.rotationBlocks[day] || [];
+    const blockIds = new Set(blocks.map(b => b.id));
+    pushUndo();
+    const newAssignments = { ...state.blockAssignments };
+    for (const k of Object.keys(newAssignments)) {
+      if (!blockIds.has(extractBlockIdFromAssignmentKey(k))) continue;
+      const isTargetWeek = k.endsWith(w) || !/\d{4}-\d{2}-\d{2}$/.test(k);
+      if (!isTargetWeek) continue;
+      if (state.manualAssignments[k]) continue; // keep manual locks
+      if (crewSection && crewSection !== 'Both') {
+        const guard = state.guards.find(g => g.id === newAssignments[k]);
+        if (!guard || guard.crewSection !== crewSection) continue;
+      }
+      delete newAssignments[k];
+    }
+    state = { ...state, blockAssignments: newAssignments };
+    notify();
+  },
+
   setAllAssignments(assignments, week) {
     const w = week || state.selectedWeek;
     pushUndo();
@@ -3621,6 +3922,7 @@ const store = {
   undoAssignments() {
     if (state.undoStack.length === 0) return false;
     const previous = state.undoStack[state.undoStack.length - 1];
+    const current = historySnapshot();
     state = {
       ...state,
       blockAssignments: previous.blockAssignments || {},
@@ -3628,7 +3930,26 @@ const store = {
       rotationBlocks: previous.rotationBlocks || {},
       lessons: previous.lessons || state.lessons || [],
       shifts: previous.shifts || state.shifts || {},
-      undoStack: state.undoStack.slice(0, -1)
+      undoStack: state.undoStack.slice(0, -1),
+      redoStack: [...(state.redoStack || []), current].slice(-10)
+    };
+    notify();
+    return true;
+  },
+
+  redoAssignments() {
+    if (!state.redoStack || state.redoStack.length === 0) return false;
+    const next = state.redoStack[state.redoStack.length - 1];
+    const current = historySnapshot();
+    state = {
+      ...state,
+      blockAssignments: next.blockAssignments || {},
+      manualAssignments: next.manualAssignments || {},
+      rotationBlocks: next.rotationBlocks || {},
+      lessons: next.lessons || state.lessons || [],
+      shifts: next.shifts || state.shifts || {},
+      redoStack: state.redoStack.slice(0, -1),
+      undoStack: [...state.undoStack, current].slice(-10)
     };
     notify();
     return true;
@@ -3737,6 +4058,40 @@ const store = {
     notify();
   },
 
+  // Persist rich-text schedule notes WITHOUT notifying listeners, so the live
+  // contenteditable editor is not destroyed/re-rendered while the user types.
+  // We still mark a local edit and queue a (debounced) cloud-sync push so the
+  // notes propagate to the Gist/other devices without disrupting typing.
+  setScheduleNotes(html) {
+    state.scheduleNotes = html;
+    saveState();
+    if (typeof isSyncLoading !== 'undefined' && !isSyncLoading) {
+      lastLocalEditTime = new Date().toISOString();
+      try { localStorage.setItem('lifeguard_last_local_edit_time', lastLocalEditTime); } catch (e) {}
+    }
+    if (typeof syncManager !== 'undefined') {
+      syncManager.handleStoreUpdate();
+    }
+  },
+
+  getDayNote(day, week) {
+    const w = week || state.selectedWeek;
+    return (state.dayNotes && state.dayNotes[`${day}-${w}`]) || '';
+  },
+
+  setDayNote(day, week, text) {
+    const w = week || state.selectedWeek;
+    const key = `${day}-${w}`;
+    const newDayNotes = { ...(state.dayNotes || {}) };
+    if (text && text.trim()) {
+      newDayNotes[key] = text.trim();
+    } else {
+      delete newDayNotes[key];
+    }
+    state = { ...state, dayNotes: newDayNotes };
+    notify();
+  },
+
   setSelectedFilterGuardId(guardId) {
     state = { ...state, selectedFilterGuardId: guardId };
     notify();
@@ -3764,7 +4119,7 @@ const store = {
 
   // ─── Export/Import ────────────────────────────────────
   exportData() {
-    const { undoStack, activeTab, selectedDay, selectedCrew, lastSaved, ...data } = state;
+    const { undoStack, redoStack, activeTab, selectedDay, selectedCrew, lastSaved, ...data } = state;
     const cleanSettings = { ...data.settings };
     delete cleanSettings.teamupApiKey;
     delete cleanSettings.teamupCalendarKey;
@@ -3772,14 +4127,16 @@ const store = {
   },
 
   exportSyncData() {
-    const { 
-      guards, 
-      shifts, 
-      rotationBlocks, 
-      blockAssignments, 
-      lessons, 
+    const {
+      guards,
+      shifts,
+      rotationBlocks,
+      blockAssignments,
+      lessons,
       settings,
-      manualMode
+      manualMode,
+      scheduleNotes,
+      dayNotes
     } = state;
     const cleanSettings = { ...settings };
     delete cleanSettings.teamupApiKey;
@@ -3791,7 +4148,9 @@ const store = {
       blockAssignments,
       lessons,
       settings: cleanSettings,
-      manualMode
+      manualMode,
+      scheduleNotes,
+      dayNotes
     });
   },
 
@@ -3846,7 +4205,7 @@ const store = {
       }
     }
     
-    const { undoStack, activeTab, selectedCrew, lastSaved, ...data } = state;
+    const { undoStack, redoStack, activeTab, selectedCrew, lastSaved, ...data } = state;
     const cleanSettings = { ...data.settings };
     delete cleanSettings.teamupApiKey;
     delete cleanSettings.teamupCalendarKey;
@@ -3903,6 +4262,7 @@ const store = {
         sharedWeek: state.sharedWeek,
         settings: mergedSettings,
         undoStack: [],
+        redoStack: [],
         lastSaved: new Date().toISOString()
       };
       notify();
@@ -3937,6 +4297,7 @@ const store = {
       isReadOnly: true,
       sharedWeek: data.selectedWeek,
       undoStack: [],
+      redoStack: [],
       lastSaved: data.lastSaved || new Date().toISOString()
     };
     notify();
@@ -4135,6 +4496,96 @@ const store = {
       notify();
     }
     return copyCount;
+  },
+
+  copyWeek(week) {
+    const w = week || state.selectedWeek;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const copied = {};
+    let count = 0;
+    for (const guard of state.guards) {
+      for (const day of days) {
+        const sh = state.shifts[`${guard.id}-${day}-${w}`] || state.shifts[`${guard.id}-${day}`];
+        if (sh) { copied[`${guard.id}-${day}`] = { ...sh }; count++; }
+      }
+    }
+    weekClipboard = count > 0 ? { shifts: copied, sourceWeek: w } : null;
+    return count;
+  },
+
+  hasWeekClipboard() { return !!weekClipboard; },
+
+  pasteWeek(targetWeek) {
+    if (!weekClipboard) return 0;
+    const w = targetWeek || state.selectedWeek;
+    const newShifts = { ...state.shifts };
+    let count = 0;
+    for (const [gd, sh] of Object.entries(weekClipboard.shifts)) {
+      newShifts[`${gd}-${w}`] = { ...sh, week: w };
+      count++;
+    }
+    if (count > 0) { pushUndo(); state = { ...state, shifts: newShifts }; notify(); }
+    return count;
+  },
+
+  copyShift(guardId, day, week) {
+    const w = week || state.selectedWeek;
+    const sh = state.shifts[`${guardId}-${day}-${w}`] || state.shifts[`${guardId}-${day}`] || null;
+    if (!sh) return false;
+    const { guardId: _g, day: _d, week: _w, ...shiftData } = sh;
+    shiftClipboard = shiftData;
+    return true;
+  },
+
+  hasShiftClipboard() { return !!shiftClipboard; },
+
+  pasteShift(guardId, day, week) {
+    if (!shiftClipboard) return false;
+    const w = week || state.selectedWeek;
+    const key = `${guardId}-${day}-${w}`;
+    pushUndo();
+    state = { ...state, shifts: { ...state.shifts, [key]: { guardId, day, week: w, ...shiftClipboard } } };
+    notify();
+    return true;
+  },
+
+  copyGuardWeek(guardId, week) {
+    const w = week || state.selectedWeek;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const copied = {};
+    let count = 0;
+    for (const day of days) {
+      const sh = state.shifts[`${guardId}-${day}-${w}`] || state.shifts[`${guardId}-${day}`];
+      if (sh) {
+        const { guardId: _g, day: _d, week: _w, ...shiftData } = sh;
+        copied[day] = shiftData;
+        count++;
+      }
+    }
+    guardWeekClipboard = count > 0 ? { shifts: copied } : null;
+    return count;
+  },
+
+  hasGuardWeekClipboard() { return !!guardWeekClipboard; },
+
+  pasteGuardWeek(targetGuardId, targetWeek) {
+    if (!guardWeekClipboard) return 0;
+    const w = targetWeek || state.selectedWeek;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    pushUndo();
+    const newShifts = { ...state.shifts };
+    for (const day of days) {
+      delete newShifts[`${targetGuardId}-${day}-${w}`];
+      delete newShifts[`${targetGuardId}-${day}`];
+    }
+    let count = 0;
+    for (const [day, shiftData] of Object.entries(guardWeekClipboard.shifts)) {
+      newShifts[`${targetGuardId}-${day}-${w}`] = { guardId: targetGuardId, day, week: w, ...shiftData };
+      count++;
+    }
+    state = { ...state, shifts: newShifts };
+    notify();
+    return count;
   },
 
   clearGuardWeekShifts(guardId, week) {
@@ -5190,7 +5641,6 @@ const syncManager = {
 };
 
 
-
 /**
  * toast.js
  */
@@ -5734,6 +6184,7 @@ function calcGuardStandTime(guardId, day, blockAssignments, blocks, shifts, sett
     totalMinutes: Math.round(finalTotalMinutes * 10) / 10,
     shiftDurationMinutes,
     percentage: Math.round(percentage * 10) / 10,
+    scalerMultiplier, // long-shift multiplier actually applied (1.0 if none)
   };
 }
 
@@ -5786,15 +6237,19 @@ function getCrewAverageStandTime(crewSection, day, guards, blockAssignments, blo
  * Get a colour status based on a guard's stand-time percentage relative to
  * the crew average.
  *
+ * Traffic-light colouring by how the guard's percentage compares to the others
+ * scheduled that day: notably higher than peers → green, around the middle →
+ * amber (yellow), notably lower → red.
+ *
  * @param {number} guardPercentage - Individual guard's stand-time %
  * @param {number} crewAverage - Crew average stand-time %
- * @returns {'green' | 'amber' | 'blue'}
+ * @returns {'green' | 'amber' | 'red'}
  */
 function getStandTimeStatus(guardPercentage, crewAverage) {
   const diff = guardPercentage - crewAverage;
-  if (diff > 5) return 'amber';
-  if (diff < -5) return 'blue';
-  return 'green';
+  if (diff > 5) return 'green';
+  if (diff < -5) return 'red';
+  return 'amber';
 }
 
 
@@ -5938,26 +6393,46 @@ function getGuardPercentage(guardId, day, blockAssignments, blocks, shifts, sett
   return stats.percentage;
 }
 
-/**
- * Check what position a guard was assigned to in a specific block.
- */
-function getGuardPositionInBlock(guardId, blockId, blockAssignments, week) {
-  const allPositions = ['stand1', 'stand2', 'stand3', 'stand4', 'stand5', 'stand6', 'door'];
-  for (const pos of allPositions) {
-    const keyWithWeek = week ? `${blockId}-${pos}-${week}` : null;
-    const keyWithoutWeek = `${blockId}-${pos}`;
-    const assignedGuard = (blockAssignments && keyWithWeek && blockAssignments[keyWithWeek]) || (blockAssignments && blockAssignments[keyWithoutWeek]) || null;
-    if (assignedGuard === guardId) {
-      return pos;
-    }
-  }
-  return null;
+// Maximum consecutive minutes a guard may spend on STANDS or at the DOOR.
+// These two caps are tracked SEPARATELY (not added together), so a guard may
+// do up to an hour on stands then up to an hour at the door before a break.
+const MAX_STREAK_MINUTES = 60;
+
+// Scoring philosophy: BALANCE is the primary driver — duty goes to whoever is
+// furthest behind on credited percentage so the totals even out (this is what
+// compensates guards who have few/no lessons). The stair-step pattern is only a
+// tiebreak that decides WHICH position among guards who are within ~a couple
+// percent of each other; once guards drift further apart, balance dominates.
+const BALANCE_WEIGHT = 1000; // score per percentage-point behind
+const FORBID = -1e9;         // would break a duty cap (only used as a last resort)
+const DESIRE_STRONG = 2000;  // natural next position in the cycle (~2% pattern band)
+const DESIRE_OK = 0;         // an acceptable but non-ideal position
+const DISCOURAGE = -2000;    // breaks the pattern (e.g. door → stand)
+// Random tie-breaker so clicking Auto Assign again yields a different valid
+// arrangement. Sized to shuffle guards who are within ~a couple % of each other
+// (fairness-neutral) while never overriding the caps or real balance gaps.
+const JITTER = 2000;
+const jitter = () => (Math.random() - 0.5) * JITTER;
+
+/** Minutes a block spans (prefer the stored interval, fall back to its span). */
+function blockMinutes(block, fallback) {
+  if (typeof block.interval === 'number' && block.interval > 0) return block.interval;
+  const span = getTimeDuration(block.startTime, block.endTime);
+  return span > 0 ? span : (fallback || 0);
 }
 
 /**
  * Generate rotation assignments for a given day and crew section.
  *
- * @param {string} day - Day of the week
+ * Model: walk the day's blocks left-to-right keeping, per guard, how long
+ * they've been continuously on stands / at the door and what they did last
+ * block. Each open position is filled by the eligible guard whose natural next
+ * step in the cycle (break → stand1 → … → standN → door → break) it is, with
+ * a separate 60-minute cap on stands and on the door, and ties broken by who
+ * has the lowest credited percentage so far (to even everyone out). Manual
+ * (user-locked) picks are never moved — the generator works around them.
+ *
+ * @param {string} day
  * @param {string} crewSection - 'AM' or 'PM'
  * @param {Object} state - Full store state
  * @returns {Array<{blockId: string, position: string, guardId: string}>}
@@ -5966,218 +6441,175 @@ function generateRotation(day, crewSection, state) {
   const { guards, shifts, settings, rotationBlocks, blockAssignments, manualAssignments = {}, lessons = [], selectedWeek } = state;
   const filteredLessons = selectedWeek ? lessons.filter(l => l.week === selectedWeek) : lessons;
   const standCount = settings.standCount ?? 2;
+  const excludeDoor = !!settings?.excludeDoor;
+  const defaultInterval = settings.rotationIntervalMinutes ?? 30;
   const blockKey = selectedWeek ? `${day}-${selectedWeek}` : day;
-  const blocks = (rotationBlocks[blockKey] || rotationBlocks[day] || []).slice().sort(
+  const allDayBlocks = rotationBlocks[blockKey] || rotationBlocks[day] || [];
+  const blocks = allDayBlocks.slice().sort(
     (a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime)
   );
 
-  // Get guards in this crew who are working today
+  // Guards working today. When crewSection is 'Both' (or omitted) we pool ALL
+  // working guards into one rotation — the crews share the same physical
+  // positions each block, so generating them separately would make the second
+  // crew overwrite the first wherever their shifts overlap.
+  const allCrews = !crewSection || crewSection === 'Both';
   const crewGuards = guards.filter(g => {
-    if (g.crewSection !== crewSection) return false;
+    if (!allCrews && g.crewSection !== crewSection) return false;
     const keyWithWeek = selectedWeek ? `${g.id}-${day}-${selectedWeek}` : null;
     const keyWithoutWeek = `${g.id}-${day}`;
     return !!((shifts && keyWithWeek && shifts[keyWithWeek]) || (shifts && shifts[keyWithoutWeek]));
   });
-
   if (crewGuards.length === 0 || blocks.length === 0) return [];
-
   const crewGuardIds = crewGuards.map(g => g.id);
-  
-  // Working copy of assignments (to track running totals)
-  const workingAssignments = { ...blockAssignments };
 
-  // Clear existing non-manual assignments belonging to the crew section being generated for the target blocks
+  // Working copy; drop this crew's existing NON-manual assignments so we can
+  // regenerate them while leaving manual locks (and the other crew) intact.
+  const workingAssignments = { ...blockAssignments };
   const blockIds = new Set(blocks.map(b => b.id));
   for (const key of Object.keys(workingAssignments)) {
-    const blockId = extractBlockId(key);
-    if (blockIds.has(blockId)) {
-      const guardId = workingAssignments[key];
-      if (crewGuardIds.includes(guardId)) {
-        if (!manualAssignments[key]) {
-          delete workingAssignments[key];
-        }
-      }
+    if (blockIds.has(extractBlockId(key)) &&
+        crewGuardIds.includes(workingAssignments[key]) &&
+        !manualAssignments[key]) {
+      delete workingAssignments[key];
     }
   }
 
+  const keyFor = (blockId, pos) => selectedWeek ? `${blockId}-${pos}-${selectedWeek}` : `${blockId}-${pos}`;
+
+  // Per-guard rolling state across blocks.
+  const gstate = new Map();
+  for (const gid of crewGuardIds) {
+    gstate.set(gid, { lastCategory: 'break', lastStandNum: 0, standStreak: 0, doorStreak: 0, doorMinutesTotal: 0 });
+  }
+
   const newAssignments = [];
-  let previousBlockId = null;
+  let prevBlockEnd = null;
 
   for (const block of blocks) {
-    // Skip closed blocks
-    if (block.guardCountOverride === 0) {
-      previousBlockId = block.id;
+    const interval = blockMinutes(block, defaultInterval);
+
+    // A time gap between blocks (or a closed block) is a break for everyone:
+    // reset all streaks so the next on-duty stint starts fresh.
+    const gapBefore = prevBlockEnd !== null && timeToMinutes(block.startTime) > prevBlockEnd;
+    if (gapBefore) {
+      for (const s of gstate.values()) { s.lastCategory = 'break'; s.standStreak = 0; s.doorStreak = 0; }
+    }
+
+    const override = block.guardCountOverride;
+    const activeStandCount = (override === null || override === undefined) ? standCount : override;
+    prevBlockEnd = timeToMinutes(block.endTime);
+
+    if (activeStandCount === 0) {
+      // Closed block — everyone on break.
+      for (const s of gstate.values()) { s.lastCategory = 'break'; s.standStreak = 0; s.doorStreak = 0; }
       continue;
     }
 
-    const activeStandCount = block.guardCountOverride !== null ? block.guardCountOverride : standCount;
-    const positionsToFill = getPositions(activeStandCount, settings?.excludeDoor);
+    const positionsToFill = getPositions(activeStandCount, excludeDoor);
 
-    // Identify pre-assigned guards for this block's positions from workingAssignments
-    const preAssigned = {}; // position -> guardId
-    const preAssignedGuards = new Set();
+    // What's already locked (manual) for this block.
+    const assignedThisBlock = {}; // pos -> gid
+    const usedGuards = new Set();
     for (const pos of positionsToFill) {
-      const keyWithWeek = selectedWeek ? `${block.id}-${pos}-${selectedWeek}` : null;
-      const keyWithoutWeek = `${block.id}-${pos}`;
-      const existingGuardId = (workingAssignments && keyWithWeek && workingAssignments[keyWithWeek]) || 
-                              (workingAssignments && workingAssignments[keyWithoutWeek]) || null;
-      if (existingGuardId) {
-        preAssigned[pos] = existingGuardId;
-        preAssignedGuards.add(existingGuardId);
-      }
+      const k = keyFor(block.id, pos);
+      const legacy = `${block.id}-${pos}`;
+      const locked = (manualAssignments[k] && workingAssignments[k]) ||
+                     (manualAssignments[legacy] && workingAssignments[legacy]) || null;
+      if (locked) { assignedThisBlock[pos] = locked; usedGuards.add(locked); }
     }
 
-    // Get eligible guards
+    // Eligible guards for this block (on shift, not teaching).
     const eligible = crewGuardIds.filter(gid =>
       isAvailable(gid, block, shifts, day, selectedWeek) &&
       !isTeaching(gid, block, day, filteredLessons)
     );
 
-    if (eligible.length === 0 && preAssignedGuards.size === 0) {
-      previousBlockId = block.id;
-      continue;
-    }
-
-    // Get current percentages for sorting
+    // Current credited percentages (from assignments decided so far) for balance.
     const pctMap = new Map();
-    const allDayBlocks = rotationBlocks[blockKey] || rotationBlocks[day] || [];
     for (const gid of crewGuardIds) {
       pctMap.set(gid, getGuardPercentage(gid, day, workingAssignments, allDayBlocks, shifts, settings, filteredLessons, selectedWeek));
     }
 
-    // Build score matrix for matching
-    const scoreMatrix = new Map();
-    for (const gid of eligible) {
+    // Score a (guard, position) placement for THIS block.
+    const placementScore = (gid, pos) => {
+      const s = gstate.get(gid);
+      const isStand = isStandPosition(pos);
+      const standNum = isStand ? parseInt(pos.replace('stand', ''), 10) : 0;
       const pct = pctMap.get(gid) ?? 0;
-      
-      // Calculate consecutive on-duty minutes worked leading up to current block
-      let consecMinutes = 0;
-      let currPrevBlockId = previousBlockId;
-      while (currPrevBlockId) {
-        const prevBlock = blocks.find(b => b.id === currPrevBlockId);
-        if (!prevBlock) break;
-        const workedPos = getGuardPositionInBlock(gid, currPrevBlockId, workingAssignments, selectedWeek);
-        if (workedPos) {
-          consecMinutes += prevBlock.interval;
-          const prevIdx = blocks.findIndex(b => b.id === currPrevBlockId);
-          currPrevBlockId = prevIdx > 0 ? blocks[prevIdx - 1].id : null;
+
+      if (isStand) {
+        // Hard cap on consecutive stand time (still selectable as a last resort).
+        if (s.standStreak + interval > MAX_STREAK_MINUTES) return FORBID - pct * BALANCE_WEIGHT;
+        // Stands give full credit → the furthest-BEHIND guard (lowest %) wins,
+        // which is what actually pulls low guards' numbers up.
+        const balance = -pct * BALANCE_WEIGHT;
+        let tier;
+        if (s.lastCategory === 'break') {
+          tier = standNum === 1 ? DESIRE_STRONG : DESIRE_OK; // enter at stand1
+        } else if (s.lastCategory === 'stand') {
+          const preferredStand = Math.min(s.lastStandNum + 1, activeStandCount);
+          tier = standNum === preferredStand ? DESIRE_STRONG : DESIRE_OK; // step up / hold top
         } else {
-          break;
+          tier = DISCOURAGE; // door → stand should be a break instead
         }
+        return balance + tier + jitter();
       }
 
-      // Position in previous block
-      const prevPos = previousBlockId ? getGuardPositionInBlock(gid, previousBlockId, workingAssignments, selectedWeek) : null;
-      const prevPosName = prevPos || 'break';
+      // DOOR — pattern-driven, NOT percentage-driven. The door multiplier can be
+      // 0, so credited % gives no signal there and would just pile the door onto
+      // whichever guard is lowest. Instead the door follows the rotation: a guard
+      // takes it right AFTER finishing their stands, and it's spread evenly by
+      // who has spent the least time at the door so far.
+      if (s.doorStreak + interval > MAX_STREAK_MINUTES) return FORBID - s.doorMinutesTotal;
+      let tier;
+      if (s.lastCategory === 'stand') {
+        const standCapReached = s.standStreak + interval > MAX_STREAK_MINUTES;
+        tier = standCapReached ? DESIRE_STRONG   // just finished stands → rotate to the door
+                               : DISCOURAGE;     // still has stand time → keep them on stands
+      } else if (s.lastCategory === 'door') {
+        tier = DESIRE_OK; // was at the door; can continue but yield to a fresh stand-finisher
+      } else {
+        tier = DESIRE_OK - 1000; // break/entering: only cover the door if nobody else can
+      }
+      // Even distribution: fewer prior door minutes → preferred; tiny % nudge
+      // keeps ties leaning toward lower-percentage guards.
+      return tier - s.doorMinutesTotal * 5 - pct + jitter();
+    };
 
-      for (const pos of positionsToFill) {
-        // Base score: prefer lower percentages to balance stand time
-        let score = -pct * 10;
-
-        // 1. Consecutive duty limit penalty (max 1 hour / 60 mins straight)
-        if (consecMinutes + block.interval > 60) {
-          score -= 500000;
-        }
-
-        // 2. Stair step bonus
-        let isStairStepMatch = false;
-        if (pos.startsWith('stand')) {
-          const standNum = parseInt(pos.replace('stand', ''));
-          if (standNum > 1) {
-            // preceding position is stand(num-1)
-            if (prevPosName === `stand${standNum - 1}`) {
-              isStairStepMatch = true;
-            }
-          } else {
-            // stand1: preceding is break
-            if (prevPosName === 'break') {
-              isStairStepMatch = true;
-            }
-          }
-        } else if (pos === 'door') {
-          // preceding position is the last stand of the previous block
-          let prevStandCount = standCount;
-          if (previousBlockId) {
-            const prevBlockObj = blocks.find(b => b.id === previousBlockId);
-            const prevStands = prevBlockObj && prevBlockObj.guardCountOverride !== null ? prevBlockObj.guardCountOverride : standCount;
-            prevStandCount = prevStands;
-          }
-          if (prevPosName === `stand${prevStandCount}`) {
-            isStairStepMatch = true;
-          }
-        }
-
-        if (isStairStepMatch) {
-          score += 500;
-        }
-
-        // 3. Door to stand penalty
-        if (prevPosName === 'door' && pos.startsWith('stand')) {
-          score -= 300;
-        }
-
-        // 4. Break to duty bonus (prefer bringing back off-duty guards)
-        if (prevPosName === 'break') {
-          score += 50;
-        }
-
-        scoreMatrix.set(`${gid}-${pos}`, score);
-
+    // Fill open positions in cycle order so stair-stepping resolves cleanly.
+    const openPositions = positionsToFill.filter(p => !assignedThisBlock[p]);
+    for (const pos of openPositions) {
+      let bestGid = null, bestScore = -Infinity;
+      for (const gid of eligible) {
+        if (usedGuards.has(gid)) continue;
+        const sc = placementScore(gid, pos);
+        if (sc > bestScore) { bestScore = sc; bestGid = gid; }
+      }
+      if (bestGid) {
+        assignedThisBlock[pos] = bestGid;
+        usedGuards.add(bestGid);
+        workingAssignments[keyFor(block.id, pos)] = bestGid;
+        newAssignments.push({ blockId: block.id, position: pos, guardId: bestGid });
       }
     }
 
-    // Find the best assignment of eligible guards to positionsToFill using backtracking
-    let bestScore = -Infinity;
-    let bestMatch = [];
-
-    function backtrack(posIdx, currentMatch, currentScore, assignedGuardsSet) {
-      if (posIdx === positionsToFill.length) {
-        if (currentScore > bestScore) {
-          bestScore = currentScore;
-          bestMatch = [...currentMatch];
-        }
-        return;
-      }
-
-      const pos = positionsToFill[posIdx];
-      const hasPre = !!preAssigned[pos];
-      const candidates = hasPre ? [preAssigned[pos]] : [...eligible.filter(gid => !preAssignedGuards.has(gid)), null];
-
-      for (const gid of candidates) {
-        if (gid && assignedGuardsSet.has(gid)) continue;
-
-        if (gid) assignedGuardsSet.add(gid);
-        currentMatch.push(gid);
-        
-        let score = 0;
-        if (gid) {
-          score = scoreMatrix.get(`${gid}-${pos}`) ?? 0;
-        } else {
-          score = -100000;
-        }
-        
-        backtrack(posIdx + 1, currentMatch, currentScore + score, assignedGuardsSet);
-        
-        currentMatch.pop();
-        if (gid) assignedGuardsSet.delete(gid);
+    // Advance every crew guard's streak state based on what they did this block.
+    for (const gid of crewGuardIds) {
+      const s = gstate.get(gid);
+      let pos = null;
+      for (const p of positionsToFill) { if (assignedThisBlock[p] === gid) { pos = p; break; } }
+      if (pos && isStandPosition(pos)) {
+        s.standStreak += interval; s.doorStreak = 0;
+        s.lastCategory = 'stand'; s.lastStandNum = parseInt(pos.replace('stand', ''), 10);
+      } else if (pos && isDoorPosition(pos)) {
+        s.doorStreak += interval; s.standStreak = 0;
+        s.doorMinutesTotal += interval; // cumulative, for even door distribution
+        s.lastCategory = 'door';
+      } else {
+        s.standStreak = 0; s.doorStreak = 0; s.lastCategory = 'break';
       }
     }
-
-    // Run matching
-    backtrack(0, [], 0, new Set());
-
-    // Record assignments
-    for (let i = 0; i < positionsToFill.length; i++) {
-      const position = positionsToFill[i];
-      const chosen = bestMatch[i];
-      if (chosen) {
-        const key = selectedWeek ? `${block.id}-${position}-${selectedWeek}` : `${block.id}-${position}`;
-        workingAssignments[key] = chosen;
-        newAssignments.push({ blockId: block.id, position, guardId: chosen });
-      }
-    }
-
-    previousBlockId = block.id;
   }
 
   return newAssignments;
@@ -6798,6 +7230,12 @@ let selectedReadOnlyTab = 'rotation';
 const selectedBlockIds = new Set();
 let lastRenderedDay = null;
 let lastRenderedTab = null;
+let trackerSort = 'start'; // daily tracker sort: 'start' (shift start time) | 'percent' (lowest first)
+
+window.__setTrackerSort = (mode) => {
+  trackerSort = mode;
+  if (typeof render === 'function') render();
+};
 
 function getMonday(d) {
   const date = new Date(d);
@@ -6813,6 +7251,12 @@ function hexToRgba(hex, alpha) {
   const g = parseInt(cleanHex.substring(2, 4), 16);
   const b = parseInt(cleanHex.substring(4, 6), 16);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+// Return the value only if it's a valid hex color (so a TeamUp-imported color
+// can't inject CSS when interpolated into an inline style); otherwise fallback.
+function safeHexColor(c, fallback = 'var(--border-default)') {
+  return (typeof c === 'string' && /^#[0-9a-fA-F]{3,8}$/.test(c)) ? c : fallback;
 }
 
 function extractBlockIdFromAssignmentKey(key) {
@@ -7202,6 +7646,10 @@ function renderNavBar(state) {
         `).join('')}
       </div>
       <div class="nav-meta">
+        <div class="nav-undo-redo" style="display:flex; gap:4px; margin-right:6px;">
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__undoAction()" title="Undo" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>↩️</button>
+          <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__redoAction()" title="Redo" ${(!state.redoStack || state.redoStack.length === 0) ? 'disabled style="opacity:0.4; cursor:not-allowed;"' : ''}>↪️</button>
+        </div>
         ${renderSyncBadge(state)}
         <span>Saved: ${lastSaved}</span>
         <span>•</span>
@@ -7297,8 +7745,8 @@ function renderScheduleTab(state) {
               </div>
             </div>
             <div class="flex gap-2">
-              <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
-              <button class="btn btn-secondary btn-sm" id="copy-prev-shifts-btn" title="Copy shift schedule from the previous week">📋 Copy Prev Week</button>
+              <button class="btn btn-secondary btn-sm" id="copy-week-btn" title="Copy all shifts from this week">📋 Copy Week</button>
+              <button class="btn btn-secondary btn-sm" id="paste-week-btn" title="Paste the copied week's shifts into this week" ${store.hasWeekClipboard() ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>📥 Paste Week</button>
               <button class="btn btn-secondary btn-sm" id="share-link-btn" title="Generate shareable URL link for guards">🔗 Share Link</button>
               <button class="btn btn-secondary btn-sm" id="export-pdf-btn">Export PDF</button>
             </div>
@@ -7312,7 +7760,138 @@ function renderScheduleTab(state) {
         ${renderGuardRoster(state)}
       </div>
     </div>
+    ${renderScheduleNotes(state)}
   `;
+}
+
+function renderScheduleNotes(state) {
+  const fontSizes = [
+    { v: '1', label: 'Small' },
+    { v: '3', label: 'Normal' },
+    { v: '5', label: 'Large' },
+    { v: '6', label: 'X-Large' },
+    { v: '7', label: 'Huge' }
+  ];
+  return `
+    <div class="card schedule-notes-card" style="margin-top:16px;">
+      <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+        <div>
+          <h2>Notes</h2>
+          <span class="text-xs text-tertiary">Added to the bottom of the exported PDF</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="notes-toolbar" role="toolbar" aria-label="Notes formatting">
+          <button type="button" class="notes-tool-btn" data-notes-cmd="bold" title="Bold" style="font-weight:700;">B</button>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="italic" title="Italic" style="font-style:italic;">I</button>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="underline" title="Underline" style="text-decoration:underline;">U</button>
+          <span class="notes-toolbar-sep"></span>
+          <label class="text-xs text-tertiary" style="display:flex; align-items:center; gap:6px;">
+            Size
+            <select id="notes-fontsize" class="notes-fontsize-select">
+              ${fontSizes.map(f => `<option value="${f.v}"${f.v === '3' ? ' selected' : ''}>${f.label}</option>`).join('')}
+            </select>
+          </label>
+          <span class="notes-toolbar-sep"></span>
+          <label class="text-xs text-tertiary" style="display:flex; align-items:center; gap:6px;">
+            Color
+            <input type="color" id="notes-color" class="notes-color-input" value="#1e293b" title="Text color" />
+          </label>
+          <span class="notes-toolbar-sep"></span>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="justifyLeft" title="Align left" aria-label="Align left"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="2" y1="8" x2="10" y2="8"/><line x1="2" y1="12" x2="13" y2="12"/></svg></button>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="justifyCenter" title="Align center" aria-label="Align center"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="4" y1="8" x2="12" y2="8"/><line x1="3" y1="12" x2="13" y2="12"/></svg></button>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="justifyRight" title="Align right" aria-label="Align right"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="2" y1="4" x2="14" y2="4"/><line x1="6" y1="8" x2="14" y2="8"/><line x1="3" y1="12" x2="14" y2="12"/></svg></button>
+          <span class="notes-toolbar-sep"></span>
+          <button type="button" class="notes-tool-btn" data-notes-cmd="removeFormat" title="Clear formatting">⌫</button>
+        </div>
+        <div id="schedule-notes-editor" class="notes-editor" contenteditable="true"
+             data-placeholder="Type notes here. They'll appear at the bottom of the exported PDF…">${state.scheduleNotes || ''}</div>
+      </div>
+    </div>
+  `;
+}
+
+function attachScheduleNotesEvents() {
+  const editor = document.getElementById('schedule-notes-editor');
+  if (!editor) return;
+
+  let savedRange = null;
+  const saveSelection = () => {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+      savedRange = sel.getRangeAt(0).cloneRange();
+    }
+  };
+  const restoreSelection = () => {
+    editor.focus();
+    if (savedRange) {
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+  };
+
+  let saveTimer = null;
+  const persist = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => store.setScheduleNotes(editor.innerHTML), 300);
+  };
+
+  const updateActiveStates = () => {
+    document.querySelectorAll('.notes-tool-btn[data-notes-cmd]').forEach(btn => {
+      const cmd = btn.dataset.notesCmd;
+      if (['bold', 'italic', 'underline', 'justifyLeft', 'justifyCenter', 'justifyRight'].includes(cmd)) {
+        let on = false;
+        try { on = document.queryCommandState(cmd); } catch (e) {}
+        btn.classList.toggle('active', on);
+      }
+    });
+  };
+
+  // Track selection so toolbar controls (which steal focus) can restore it.
+  editor.addEventListener('keyup', () => { saveSelection(); updateActiveStates(); });
+  editor.addEventListener('mouseup', () => { saveSelection(); updateActiveStates(); });
+  editor.addEventListener('input', () => { saveSelection(); persist(); });
+  editor.addEventListener('blur', saveSelection);
+
+  // Formatting buttons (bold / italic / underline / clear)
+  document.querySelectorAll('.notes-tool-btn[data-notes-cmd]').forEach(btn => {
+    // Keep the editor's selection when the button is pressed.
+    btn.addEventListener('mousedown', e => e.preventDefault());
+    btn.addEventListener('click', () => {
+      restoreSelection();
+      try { document.execCommand(btn.dataset.notesCmd, false, null); } catch (e) {}
+      saveSelection();
+      updateActiveStates();
+      persist();
+    });
+  });
+
+  // Font size
+  const sizeSelect = document.getElementById('notes-fontsize');
+  if (sizeSelect) {
+    sizeSelect.addEventListener('mousedown', saveSelection);
+    sizeSelect.addEventListener('change', () => {
+      restoreSelection();
+      try { document.execCommand('fontSize', false, sizeSelect.value); } catch (e) {}
+      saveSelection();
+      persist();
+    });
+  }
+
+  // Text color
+  const colorInput = document.getElementById('notes-color');
+  if (colorInput) {
+    colorInput.addEventListener('mousedown', saveSelection);
+    const applyColor = () => {
+      restoreSelection();
+      try { document.execCommand('foreColor', false, colorInput.value); } catch (e) {}
+      saveSelection();
+      persist();
+    };
+    colorInput.addEventListener('input', applyColor);
+    colorInput.addEventListener('change', applyColor);
+  }
 }
 
 function renderWeeklyGrid(state) {
@@ -7341,7 +7920,9 @@ function renderWeeklyGrid(state) {
             const dayDate = new Date(currentWeekStart);
             dayDate.setDate(dayDate.getDate() + idx);
             const dateNum = dayDate.getDate();
-            return `<th>${d.slice(0, 3)} (${dateNum})</th>`;
+            const dayNote = store.getDayNote(d, state.selectedWeek);
+            const noteMark = dayNote ? ` <span title="${escapeHtml(dayNote)}">📝</span>` : '';
+            return `<th class="day-col-header" style="cursor:pointer;" title="Click to add or edit a note for ${d}" onclick="window.__editDayNote('${d}')">${d.slice(0, 3)} (${dateNum})${noteMark}</th>`;
           }).join('')}
         </tr>
       </thead>
@@ -7398,17 +7979,16 @@ function renderGuardRow(guard, days, state) {
   return `
     <tr>
       <td class="guard-name-cell">
-        <div class="flex items-center gap-2">
-          <div class="guard-avatar ${guard.crewSection.toLowerCase()}" style="width:24px;height:24px;font-size:0.65rem;">
-            ${escapeHtml(guard.name.charAt(0).toUpperCase())}
+        <div style="display:flex; flex-direction:column; gap:2px;">
+          <div style="display:flex; align-items:center; gap:4px;">
+            <span>${escapeHtml(guard.name)}</span>
+            ${!isReadOnly ? `<button class="btn btn-ghost btn-icon btn-sm" title="Clear all shifts for this week" onclick="window.__clearGuardWeekShifts('${guard.id}', event)" style="width:14px;height:14px;font-size:0.65rem;padding:0;display:inline-flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🧹</button>` : ''}
           </div>
-          <div style="display:flex; flex-direction:column; gap:2px;">
-            <div style="display:flex; align-items:center; gap:4px;">
-              <span>${escapeHtml(guard.name)}</span>
-              ${!isReadOnly ? `<button class="btn btn-ghost btn-icon btn-sm" title="Clear all shifts for this week" onclick="window.__clearGuardWeekShifts('${guard.id}', event)" style="width:14px;height:14px;font-size:0.65rem;padding:0;display:inline-flex;align-items:center;justify-content:center;opacity:0.6;transition:opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🧹</button>` : ''}
-            </div>
-            ${renderTotalHoursBadge(guard.id, state)}
-          </div>
+          ${renderTotalHoursBadge(guard.id, state)}
+          ${!isReadOnly ? `<div style="display:flex; align-items:center; gap:6px; margin-top:3px;">
+            <button class="btn btn-ghost btn-icon btn-sm" title="Copy this guard's whole week" onclick="window.__copyGuardWeek('${guard.id}')" style="width:22px;height:22px;font-size:0.8rem;padding:0;display:inline-flex;align-items:center;justify-content:center;">📋</button>
+            ${store.hasGuardWeekClipboard() ? `<button class="btn btn-ghost btn-icon btn-sm" title="Paste copied week here (clears this guard's week first)" onclick="window.__pasteGuardWeek('${guard.id}')" style="width:22px;height:22px;font-size:0.8rem;padding:0;display:inline-flex;align-items:center;justify-content:center;">📥</button>` : ''}
+          </div>` : ''}
         </div>
       </td>
       ${days.map(d => {
@@ -7452,13 +8032,23 @@ function renderGuardRow(guard, days, state) {
           `;
           if (!isReadOnly) {
             cellContent += `
-              <div class="shift-copy-actions" style="display:flex;gap:4px;margin-top:4px;justify-content:center;" onclick="event.stopPropagation()">
+              <div class="shift-copy-actions" style="display:flex;gap:4px;justify-content:center;" onclick="event.stopPropagation()">
+                <button class="btn btn-ghost btn-icon btn-sm" title="Copy this shift" onclick="window.__copyShift('${guard.id}', '${d}')" style="width:20px;height:20px;font-size:0.7rem;">📋</button>
                 <button class="btn btn-ghost btn-icon btn-sm" title="Delete shift" onclick="window.__deleteShift('${guard.id}', '${d}')" style="width:20px;height:20px;font-size:0.7rem;color:var(--status-red);">🗑️</button>
               </div>
             `;
           }
         } else {
-          cellContent = isReadOnly ? `<span class="text-tertiary" style="font-size:0.7rem;">—</span>` : `<span class="text-tertiary" style="font-size:0.65rem;">+ Add</span>`;
+          if (isReadOnly) {
+            cellContent = `<span class="text-tertiary" style="font-size:0.7rem;">—</span>`;
+          } else if (store.hasShiftClipboard()) {
+            cellContent = `<div style="display:flex; align-items:stretch; width:100%; flex:1; align-self:stretch;">
+              <span class="text-tertiary" style="flex:1; display:flex; align-items:center; justify-content:center; font-size:0.8rem;">+ Add</span>
+              <button class="btn btn-ghost" title="Paste copied shift here" onclick="event.stopPropagation(); window.__pasteShift('${guard.id}', '${d}')" style="flex:1; display:flex; align-items:center; justify-content:flex-start; gap:5px; font-size:0.8rem; padding:0 6px; border-radius:var(--radius-sm);">📥 Paste</button>
+            </div>`;
+          } else {
+            cellContent = `<span class="text-tertiary" style="font-size:0.65rem;">+ Add</span>`;
+          }
         }
 
         return `
@@ -7476,8 +8066,8 @@ function renderGuardRow(guard, days, state) {
 function renderGuardRoster(state) {
   return `
     <div class="card">
-      <div class="card-header">
-        <h3>👥 Guard Roster</h3>
+      <div class="card-header" style="display:block;">
+        <h3 style="margin:0; white-space:nowrap;">Guard Roster</h3>
         <span class="text-xs text-tertiary">${state.guards.length} total</span>
       </div>
       <div class="card-body">
@@ -7555,7 +8145,6 @@ function renderRotationTab(state) {
               </div>
             </div>
             <div class="flex gap-2" style="flex-wrap: wrap;">
-              <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
               <button class="btn btn-secondary btn-sm" id="generate-blocks-btn" title="Generate time blocks from shifts">
                 ⏱ Generate Blocks
               </button>
@@ -7567,6 +8156,9 @@ function renderRotationTab(state) {
               </button>
               <button class="btn btn-secondary btn-sm" id="share-rotations-btn" title="Generate shareable URL link for rotations view">
                 🔗 Share Rotations
+              </button>
+              <button class="btn btn-secondary btn-sm" id="export-rotation-btn" title="Open a printable rotation sheet for this day in a new tab">
+                📄 Export
               </button>
               <button class="btn btn-secondary btn-sm" id="clear-assignments-btn" title="Clear all assignments">
                 🗑 Clear
@@ -7791,23 +8383,32 @@ function renderDailyTracker(state) {
   const settings = state.settings;
   const filteredLessons = getFilteredLessonsForWeek(state);
 
-  // Compute crew average
-  const crewAvg = {};
-  if (guardsToday.length > 0) {
-    ['AM', 'PM'].forEach(cs => {
-      const crewGuards = guardsToday.filter(g => g.crewSection === cs);
-      if (crewGuards.length > 0) {
-        const total = crewGuards.reduce((sum, g) => {
-          const st = calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
-          return sum + st.percentage;
-        }, 0);
-        crewAvg[cs] = total / crewGuards.length;
-      }
-    });
+  // Compute each guard's stats once, then sort per the selected mode.
+  const entries = guardsToday.map(g => ({
+    g,
+    st: calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek),
+    shift: store.getShift(g.id, day, state.selectedWeek),
+  }));
+
+  // Average across EVERYONE working today (not per crew) — the traffic-light
+  // color compares each guard to the whole group, matching the combined rotation.
+  let dayAvg = 0;
+  if (entries.length > 0) {
+    dayAvg = entries.reduce((sum, e) => sum + (e.st.percentage || 0), 0) / entries.length;
   }
 
+  entries.sort((a, b) => {
+    if (trackerSort === 'percent') {
+      return (a.st.percentage || 0) - (b.st.percentage || 0); // lowest first
+    }
+    // 'start' — by shift start time; guards without a shift sort last.
+    const aStart = a.shift ? timeToMinutes(a.shift.startTime) : Infinity;
+    const bStart = b.shift ? timeToMinutes(b.shift.startTime) : Infinity;
+    return aStart - bStart;
+  });
+
   return `
-    <div class="card">
+    <div class="card daily-tracker-card">
       <div class="card-header">
         <h3>📊 ${day} Tracker</h3>
         <span class="text-xs text-tertiary">${guardsToday.length} guards</span>
@@ -7818,37 +8419,81 @@ function renderDailyTracker(state) {
             No guards working ${day}
           </div>
         ` : `
+          <div class="tracker-sort">
+            <button class="tracker-sort-btn ${trackerSort === 'start' ? 'active' : ''}" onclick="window.__setTrackerSort('start')">🕒 Start time</button>
+            <button class="tracker-sort-btn ${trackerSort === 'percent' ? 'active' : ''}" onclick="window.__setTrackerSort('percent')">⬇️ Lowest %</button>
+          </div>
           <div class="tracker-panel">
-            ${guardsToday.map(g => {
-              const st = calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
-              const avg = crewAvg[g.crewSection] || 0;
-              const status = getStandTimeStatus(st.percentage, avg);
+            ${entries.map(({ g, st, shift }) => {
+              const status = getStandTimeStatus(st.percentage, dayAvg);
               const pctDisplay = isNaN(st.percentage) ? 0 : Math.round(st.percentage);
               const doorMult = settings.doorCreditMultiplier ?? (settings.doorCreditPercent !== undefined ? settings.doorCreditPercent / 100 : 0.5);
-              const shift = store.getShift(g.id, day, state.selectedWeek);
+              const lessonMult = settings.lessonMultiplier ?? 0.75;
+              const scalerMult = st.scalerMultiplier ?? 1;
+              const scalerActive = scalerMult !== 1;
+              // Darker traffic-light green for the percentage number so it reads
+              // distinct from the turquoise lesson segment in the bar.
+              const pctColor = status === 'green' ? '#16a34a'
+                : status === 'red' ? 'var(--status-red)'
+                : 'var(--status-amber)';
+
+              // The BAR shows RAW assigned time as a fraction of the shift, so
+              // door time fills its share too (blue=stand, turquoise=lesson,
+              // brown=door); the unassigned remainder stays dark. The big
+              // PERCENTAGE number is the credited figure (multipliers applied).
+              const shiftMin = st.shiftDurationMinutes;
+              let standW = shiftMin > 0 ? (st.rawStandMinutes / shiftMin) * 100 : 0;
+              let lessonW = shiftMin > 0 ? (st.rawLessonMinutes / shiftMin) * 100 : 0;
+              let doorW = shiftMin > 0 ? (st.doorMinutes / shiftMin) * 100 : 0;
+              const totalW = standW + lessonW + doorW;
+              if (totalW > 100) { const k = 100 / totalW; standW *= k; lessonW *= k; doorW *= k; }
+
+              // Build the "raw × mult% × long-shift% = credit" explanation shown
+              // on hover. Stand passes catMult = 1 (no per-category multiplier).
+              const catCalc = (rawMin, catMult, catLabel) => {
+                const credit = rawMin * catMult * scalerMult;
+                let text = formatDuration(rawMin);
+                // Every multiplier is shown as a signed delta from 100%
+                // (e.g. 1.2 → +20%, 0.5 → −50%, 0 → −100%).
+                const fmtDelta = (m) => `${m - 1 >= 0 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}%`;
+                if (catMult !== 1) text += ` ${fmtDelta(catMult)} (${catLabel})`;
+                if (scalerActive) text += ` ${fmtDelta(scalerMult)} (long shift)`;
+                text += ` = ${formatDuration(Math.round(credit))} credit`;
+                return { credit, text };
+              };
+              const standCalc = catCalc(st.rawStandMinutes, 1, 'stand');
+              const lessonCalc = catCalc(st.rawLessonMinutes, lessonMult, 'lesson');
+              const doorCalc = catCalc(st.doorMinutes, doorMult, 'door');
 
               return `
                 <div class="stand-time-bar-container" id="tracker-bar-${g.id}">
                   <div class="stand-time-header">
-                    <div class="guard-label flex items-center gap-2" style="flex-wrap: wrap;">
-                      <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
-                        ${escapeHtml(g.name.charAt(0))}
-                      </div>
-                      <div style="display:flex; flex-direction:column; gap:1px;">
-                        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                          <span>${escapeHtml(g.name)}</span>
-                          ${st.shiftDurationMinutes > 0 ? `<span class="shift-duration">🕒 ${formatDuration(st.shiftDurationMinutes)}</span>` : ''}
-                        </div>
-                        ${shift ? `<span style="font-size:0.65rem; color:var(--text-tertiary); font-weight:500;">${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</span>` : ''}
-                      </div>
+                    <div class="guard-label" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0;">
+                      <span>${escapeHtml(g.name)}</span>
+                      ${st.shiftDurationMinutes > 0 ? `<span class="shift-duration">🕒 ${formatDuration(st.shiftDurationMinutes)}</span>` : ''}
                     </div>
-                    <span class="percentage-label" style="color: var(--status-${status})">${pctDisplay}%</span>
+                    ${shift ? `<span style="font-size:0.65rem; color:var(--text-tertiary); font-weight:500;">${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</span>` : ''}
                   </div>
-                  <div class="stand-time-track">
-                    <div class="stand-time-fill ${status}" style="width: ${Math.min(100, pctDisplay)}%"></div>
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="stand-time-track" style="display:flex; flex:1; min-width:0;">
+                      <div style="width:${standW}%; background:#3b82f6; flex-shrink:0;"></div>
+                      <div style="width:${lessonW}%; background:#2dd4a8; flex-shrink:0;"></div>
+                      <div style="width:${doorW}%; background:#9a6a3a; flex-shrink:0;"></div>
+                    </div>
+                    <span class="credit-tip credit-tip-right" tabindex="0" style="flex-shrink:0; width:58px; justify-content:flex-end;">
+                      <span class="percentage-label" style="color:${pctColor}">${pctDisplay}%</span>
+                      <span class="credit-pop">
+                        <div>🏖️ ${standCalc.text}</div>
+                        <div>📚 ${lessonCalc.text}</div>
+                        <div>🚪 ${doorCalc.text}</div>
+                        <div class="credit-pop-total">${formatDuration(Math.round(st.totalMinutes))} total credit · ${pctDisplay}% of ${formatDuration(st.shiftDurationMinutes)} shift</div>
+                      </span>
+                    </span>
                   </div>
-                  <div class="stand-time-detail">
-                    🏖️ ${formatDuration(st.rawStandMinutes)} (${formatDuration(Math.round(st.totalMinutes))} credit) • 🚪 ${formatDuration(st.doorMinutes)} • 📚 ${formatDuration(st.rawLessonMinutes)}
+                  <div class="stand-time-detail" style="display:flex; gap:16px; flex-wrap:wrap;">
+                    <span class="credit-tip" tabindex="0">🏖️ ${formatDuration(st.rawStandMinutes)}<span class="credit-pop">${standCalc.text}</span></span>
+                    <span class="credit-tip" tabindex="0">📚 ${formatDuration(st.rawLessonMinutes)}<span class="credit-pop">${lessonCalc.text}</span></span>
+                    <span class="credit-tip" tabindex="0">🚪 ${formatDuration(st.doorMinutes)}<span class="credit-pop">${doorCalc.text}</span></span>
                   </div>
                 </div>
               `;
@@ -8078,20 +8723,6 @@ function renderSettingsTab(state) {
     <div class="settings-grid">
       <div class="settings-section">
         <div class="card">
-          <div class="card-header"><h3>Appearance</h3></div>
-          <div class="card-body">
-            <div class="setting-item">
-              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
-                <input type="checkbox" id="setting-universal-emoji" ${isUniversalEmojiOn() ? 'checked' : ''}
-                       onchange="window.__toggleUniversalEmoji(this.checked)" />
-                Use universal emoji (this device only)
-              </label>
-              <span class="setting-description">Render icons with a built-in emoji font instead of the operating system's. Turn this on if emoji show up as boxes or look wrong (common on older systems like Windows 7).</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-4">
           <div class="card-header"><h3>Rotation Configuration</h3></div>
           <div class="card-body">
             <div class="setting-item">
@@ -8465,6 +9096,44 @@ function renderSettingsTab(state) {
         </div>
 
         <div class="card mt-4">
+          <div class="card-header"><h3>Swim Lessons Configuration</h3></div>
+          <div class="card-body">
+            <div class="setting-item">
+              <label>Lessons Start Time</label>
+              <input type="time" class="form-input" value="${s.lessonsStartTime || '08:00'}"
+                     id="setting-lessons-start"
+                     onchange="window.__updateSetting('lessonsStartTime', this.value)" />
+              <span class="setting-description">Start hour boundary for the Swim Lessons calendar</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Lessons End Time</label>
+              <input type="time" class="form-input" value="${s.lessonsEndTime || '18:00'}"
+                     id="setting-lessons-end"
+                     onchange="window.__updateSetting('lessonsEndTime', this.value)" />
+              <span class="setting-description">End hour boundary for the Swim Lessons calendar</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="setting-lessons-exclude-saturday" ${s.lessonsExcludeSaturday ? 'checked' : ''}
+                       onchange="window.__updateSetting('lessonsExcludeSaturday', this.checked)" />
+                Exclude Saturday
+              </label>
+              <span class="setting-description">Hide Saturday from the Swim Lessons calendar and stretch Monday–Friday</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Lessons Slot Height (px)</label>
+              <input type="number" class="form-input" value="${s.lessonsSlotHeight || 50}"
+                     min="30" max="150" step="5" id="setting-lessons-slot-height"
+                     onchange="window.__updateSetting('lessonsSlotHeight', parseInt(this.value))" />
+              <span class="setting-description">Vertical height of each 30-minute block on the calendar (30px–150px)</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mt-4">
           <div class="card-header">
             <h3>☁️ Cloud Sync (Multi-Device Sync)</h3>
           </div>
@@ -8576,44 +9245,6 @@ function renderSettingsTab(state) {
         </div>
 
         <div class="card mt-4">
-          <div class="card-header"><h3>Swim Lessons Configuration</h3></div>
-          <div class="card-body">
-            <div class="setting-item">
-              <label>Lessons Start Time</label>
-              <input type="time" class="form-input" value="${s.lessonsStartTime || '08:00'}"
-                     id="setting-lessons-start"
-                     onchange="window.__updateSetting('lessonsStartTime', this.value)" />
-              <span class="setting-description">Start hour boundary for the Swim Lessons calendar</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label>Lessons End Time</label>
-              <input type="time" class="form-input" value="${s.lessonsEndTime || '18:00'}"
-                     id="setting-lessons-end"
-                     onchange="window.__updateSetting('lessonsEndTime', this.value)" />
-              <span class="setting-description">End hour boundary for the Swim Lessons calendar</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
-                <input type="checkbox" id="setting-lessons-exclude-saturday" ${s.lessonsExcludeSaturday ? 'checked' : ''}
-                       onchange="window.__updateSetting('lessonsExcludeSaturday', this.checked)" />
-                Exclude Saturday
-              </label>
-              <span class="setting-description">Hide Saturday from the Swim Lessons calendar and stretch Monday–Friday</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label>Lessons Slot Height (px)</label>
-              <input type="number" class="form-input" value="${s.lessonsSlotHeight || 50}"
-                     min="30" max="150" step="5" id="setting-lessons-slot-height"
-                     onchange="window.__updateSetting('lessonsSlotHeight', parseInt(this.value))" />
-              <span class="setting-description">Vertical height of each 30-minute block on the calendar (30px–150px)</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-4">
           <div class="card-header"><h3>TeamUp API Integration</h3></div>
           <div class="card-body">
             <div class="setting-item">
@@ -8638,6 +9269,19 @@ function renderSettingsTab(state) {
           </div>
         </div>
 
+        <div class="card mt-4">
+          <div class="card-header"><h3>Appearance</h3></div>
+          <div class="card-body">
+            <div class="setting-item">
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="setting-universal-emoji" ${isUniversalEmojiOn() ? 'checked' : ''}
+                       onchange="window.__toggleUniversalEmoji(this.checked)" />
+                Use universal emoji (this device only)
+              </label>
+              <span class="setting-description">Render icons with a built-in emoji font instead of the operating system's. Turn this on if emoji show up as boxes or look wrong (common on older systems like Windows 7).</span>
+            </div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -8970,6 +9614,12 @@ function renderLessonsTab(state) {
     lessonsToRender = lessonsToRender.filter(l => hasLessonConflict(l, state));
   }
 
+  // Guards who teach at least one lesson this week — for the filter strip.
+  const teachingGuards = [...new Set(allLessons.map(l => String(l.guardId)))]
+    .map(id => store.getGuardById(id))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return `
     <div class="lessons-layout">
       <div class="card">
@@ -8990,18 +9640,8 @@ function renderLessonsTab(state) {
                 Show Conflicts
               </label>
             </div>
-            <div class="lessons-filter-container" style="display:flex; align-items:center; gap:8px; margin-left: 15px;">
-              <span class="text-xs text-secondary" style="font-weight:500;">Filter Guard:</span>
-              <select class="form-input" id="lessons-guard-filter" style="height: 32px; padding: 0 8px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
-                <option value="all" ${filterGuardId === 'all' ? 'selected' : ''}>All Guards</option>
-                ${[...state.guards].sort((a,b)=>a.name.localeCompare(b.name)).map(g => `
-                  <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${escapeHtml(g.name)}</option>
-                `).join('')}
-              </select>
-            </div>
           </div>
           <div class="flex gap-2">
-            <button class="btn btn-secondary btn-sm" onclick="window.__undoAction()" title="Undo last action" ${(!state.undoStack || state.undoStack.length === 0) ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>↩️ Undo</button>
             <button class="btn btn-secondary btn-sm" id="import-lessons-btn" title="Import swim lessons from a TeamUp CSV file">📂 Import CSV</button>
             <input type="file" id="import-lessons-file-input" accept=".csv" style="display: none;" />
             <button class="btn btn-secondary btn-sm" id="sync-teamup-btn" title="Sync swim lessons from TeamUp API">🔄 Sync TeamUp</button>
@@ -9014,6 +9654,18 @@ function renderLessonsTab(state) {
               ➕ Add Lesson
             </button>
           </div>
+        </div>
+        <div class="lesson-guard-strip">
+          <button class="lesson-guard-chip ${filterGuardId === 'all' ? 'active' : ''}" onclick="window.__setLessonFilter('all')" title="Show all guards">
+            <span class="lgc-name">All Guards</span>
+            <span class="lgc-pill lgc-pill-all"></span>
+          </button>
+          ${teachingGuards.map(g => `
+            <button class="lesson-guard-chip ${String(filterGuardId) === String(g.id) ? 'active' : ''}" onclick="window.__setLessonFilter('${g.id}')" title="Filter to ${escapeHtml(g.name)}">
+              <span class="lgc-name">${escapeHtml(g.name)}</span>
+              <span class="lgc-pill" style="background:${safeHexColor(g.color)};"></span>
+            </button>
+          `).join('')}
         </div>
         <div class="card-body" style="padding:0; overflow-x: auto;">
           <div class="calendar-container" style="min-width: 800px; height: 600px; display: flex; flex-direction: column;">
@@ -9071,12 +9723,13 @@ function renderLessonsTab(state) {
                         const guard = store.getGuardById(lesson.guardId);
                         const guardName = guard ? guard.name : 'Unknown Guard';
                         const crewClass = guard ? (guard.crewSection === 'AM' ? 'am-lesson' : 'pm-lesson') : 'neutral-lesson';
-                        const cardStyle = guard && guard.color
-                          ? `background: linear-gradient(135deg, ${hexToRgba(guard.color, 0.35)} 0%, ${hexToRgba(guard.color, 0.15)} 100%) !important; border-left: 3px solid ${guard.color} !important; color: #ffffff !important;`
+                        const cardColor = safeHexColor(guard && guard.color, '');
+                        const cardStyle = cardColor
+                          ? `background: linear-gradient(135deg, ${hexToRgba(cardColor, 0.35)} 0%, ${hexToRgba(cardColor, 0.15)} 100%) !important; border-left: 3px solid ${cardColor} !important; color: #ffffff !important;`
                           : '';
-                        
+
                         return `
-                          <div class="lesson-card ${crewClass}" 
+                          <div class="lesson-card ${crewClass}"
                                draggable="true"
                                ondragstart="window.__onLessonDragStart(event, '${lesson.id}')"
                                ondragend="this.classList.remove('dragging')"
@@ -9084,16 +9737,11 @@ function renderLessonsTab(state) {
                                ondragleave="window.__onLessonDragLeave(event)"
                                ondrop="window.__onLessonDrop(event, '${day}', '${lesson.startTime}')"
                                onclick="window.__openEditLessonModal('${lesson.id}', event)"
-                               style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto; ${cardStyle}"
-                               title="${escapeHtml(guardName)} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${escapeHtml(lesson.subject)}` : ''}${lesson.notes ? `\nNotes: ${escapeHtml(lesson.notes)}` : ''}">
-                            <div class="lesson-card-header" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.1; margin-bottom: 2px; color: var(--text-primary);">
-                              ${escapeHtml(guardName)}
-                              ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${escapeHtml(lesson.subject)}</div>` : ''}
-                            </div>
-                            <div class="lesson-card-meta" style="font-size: 0.65rem; color: rgba(255,255,255,0.85); display: flex; justify-content: space-between; align-items: flex-end;">
-                              <span>${formatTime(lesson.startTime)}</span>
-                              <span>${lesson.durationMinutes}m</span>
-                            </div>
+                               onmouseenter="window.__showLessonTip(event, '${lesson.id}')"
+                               onmousemove="window.__moveLessonTip(event)"
+                               onmouseleave="window.__hideLessonTip()"
+                               style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; z-index: 10; pointer-events: auto; ${cardStyle}">
+                            <span class="lesson-card-name" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.15; color: #ffffff; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(guardName)}</span>
                           </div>
                         `;
                       }).join('')}
@@ -9110,6 +9758,67 @@ function renderLessonsTab(state) {
     </div>
   `;
 }
+
+// Filter the lessons calendar to a guard (or 'all') via the guard chip strip.
+window.__setLessonFilter = (guardId) => {
+  store.setSelectedFilterGuardId(guardId);
+};
+
+// ─── Lesson hover popup (full details) ─────────────────────
+function ensureLessonTip() {
+  let tip = document.getElementById('lesson-hover-tip');
+  if (!tip) {
+    tip = document.createElement('div');
+    tip.id = 'lesson-hover-tip';
+    tip.className = 'lesson-hover-tip';
+    document.body.appendChild(tip);
+  }
+  return tip;
+}
+
+window.__showLessonTip = (event, lessonId) => {
+  const state = store.getState();
+  const lesson = state.lessons.find(l => l.id === lessonId);
+  if (!lesson) return;
+  const guard = store.getGuardById(lesson.guardId);
+  const name = guard ? guard.name : 'Unknown Guard';
+  const startMin = timeToMinutes(lesson.startTime);
+  const endTime = minutesToTime(startMin + (parseInt(lesson.durationMinutes) || 0));
+
+  const tip = ensureLessonTip();
+  tip.innerHTML = `
+    <div class="lht-head"><span class="lht-dot"></span>${escapeHtml(name)}</div>
+    <div class="lht-row">🗓️ ${escapeHtml(lesson.day || '')}</div>
+    <div class="lht-row">🕒 ${formatTime(lesson.startTime)} – ${formatTime(endTime)} <span class="lht-dim">(${parseInt(lesson.durationMinutes) || 0}m)</span></div>
+    ${lesson.subject ? `<div class="lht-row">🏷️ ${escapeHtml(lesson.subject)}</div>` : ''}
+    ${lesson.notes ? `<div class="lht-row">📝 ${escapeHtml(lesson.notes)}</div>` : ''}
+  `;
+  // Set the color dot via property (never via innerHTML) to avoid CSS injection.
+  const dot = tip.querySelector('.lht-dot');
+  if (dot) dot.style.background = safeHexColor(guard && guard.color, 'var(--primary-400)');
+  tip.style.display = 'block';
+  window.__moveLessonTip(event);
+};
+
+window.__moveLessonTip = (event) => {
+  const tip = document.getElementById('lesson-hover-tip');
+  if (!tip || tip.style.display === 'none') return;
+  const pad = 14;
+  const w = tip.offsetWidth || 240;
+  const h = tip.offsetHeight || 120;
+  let x = event.clientX + pad;
+  let y = event.clientY + pad;
+  if (x + w > window.innerWidth - 8) x = event.clientX - w - pad;
+  if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
+  if (y < 8) y = 8;
+  tip.style.left = x + 'px';
+  tip.style.top = y + 'px';
+};
+
+window.__hideLessonTip = () => {
+  const tip = document.getElementById('lesson-hover-tip');
+  if (tip) tip.style.display = 'none';
+};
 
 function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTime = null) {
   const state = store.getState();
@@ -9935,6 +10644,48 @@ window.__deleteShift = (guardId, day) => {
   store.removeShiftEntry(guardId, day);
   showToast(`Shift removed`, 'info');
 };
+
+window.__copyShift = (guardId, day) => {
+  if (store.copyShift(guardId, day, store.getState().selectedWeek)) {
+    showToast(`Shift copied. Click 📥 on any empty cell to paste.`, 'success');
+    render();
+  }
+};
+
+window.__pasteShift = (guardId, day) => {
+  if (store.pasteShift(guardId, day, store.getState().selectedWeek)) {
+    showToast(`Shift pasted.`, 'success');
+  }
+};
+
+window.__editDayNote = (day) => {
+  const week = store.getState().selectedWeek;
+  const current = store.getDayNote(day, week);
+  const val = window.prompt(`Note for ${day} (shown under the day in the exported PDF). Leave blank to clear:`, current);
+  if (val === null) return;
+  store.setDayNote(day, week, val);
+  showToast(val.trim() ? `Note saved for ${day}.` : `Note cleared for ${day}.`, 'success');
+};
+
+window.__copyGuardWeek = (guardId) => {
+  const guard = store.getGuardById(guardId);
+  const count = store.copyGuardWeek(guardId, store.getState().selectedWeek);
+  if (count > 0) {
+    showToast(`Copied ${guard ? guard.name + "'s" : 'guard'} week (${count} shifts). Click 📥 on any guard to paste.`, 'success');
+    render();
+  } else {
+    showToast(`${guard ? guard.name : 'That guard'} has no shifts this week to copy.`, 'info');
+  }
+};
+
+window.__pasteGuardWeek = (guardId) => {
+  if (!store.hasGuardWeekClipboard()) return;
+  const guard = store.getGuardById(guardId);
+  if (confirm(`Paste the copied week onto ${guard ? guard.name : 'this guard'}? This clears their current week first.`)) {
+    const count = store.pasteGuardWeek(guardId, store.getState().selectedWeek);
+    showToast(`Pasted ${count} shifts onto ${guard ? guard.name : 'guard'}.`, 'success');
+  }
+};
 // ════════════════════════════════════════════════════════════
 
 // Expose handlers to window for inline onclick
@@ -10188,7 +10939,13 @@ window.__assignGuard = (blockId, position, guardId, event) => {
 
   window.__undoAction = () => {
     if (store.undoAssignments()) {
-      renderApp();
+      render();
+    }
+  };
+
+  window.__redoAction = () => {
+    if (store.redoAssignments()) {
+      render();
     }
   };
 
@@ -11376,7 +12133,9 @@ window.__clearSelectedBlockAssignments = () => {
     ids.forEach(blockId => {
       store.clearBlockAssignments(blockId, week);
     });
+    selectedBlockIds.clear();
     showToast(`Assignments cleared for ${ids.length} block(s)`, "info");
+    render(); // deselect the blocks and close the selection bar
   }
 };
 
@@ -11391,6 +12150,7 @@ window.__deleteSelectedBlocks = () => {
     store.deleteSpecificBlocks(day, ids);
     selectedBlockIds.clear();
     showToast(`${ids.length} block(s) deleted`, "info");
+    render(); // deselect the blocks and close the selection bar
   }
 };
 
@@ -11546,17 +12306,36 @@ function attachGlobalEvents(state) {
     });
   }
 
-  // Copy shifts from previous week button
-  const copyPrevShiftsBtn = document.getElementById('copy-prev-shifts-btn');
-  if (copyPrevShiftsBtn) {
-    copyPrevShiftsBtn.addEventListener('click', () => {
-      if (confirm("Are you sure you want to copy all shifts from the previous week? This will overwrite existing shifts for this week on matching days.")) {
-        const copiedCount = store.copyShiftsFromPreviousWeek(state.selectedWeek);
-        if (copiedCount > 0) {
-          showToast(`Successfully copied ${copiedCount} shifts from previous week!`, 'success');
-        } else {
-          showToast(`No shifts found in the previous week to copy.`, 'info');
-        }
+  // Export rotation (opens a printable sheet in a new tab)
+  const exportRotationBtn = document.getElementById('export-rotation-btn');
+  if (exportRotationBtn) {
+    exportRotationBtn.addEventListener('click', () => {
+      if (window.exportRotationView) window.exportRotationView();
+    });
+  }
+
+  // Copy Week button
+  const copyWeekBtn = document.getElementById('copy-week-btn');
+  if (copyWeekBtn) {
+    copyWeekBtn.addEventListener('click', () => {
+      const count = store.copyWeek(state.selectedWeek);
+      if (count > 0) {
+        showToast(`Copied ${count} shifts. Go to any week and click "Paste Week".`, 'success');
+        render();
+      } else {
+        showToast(`No shifts in this week to copy.`, 'info');
+      }
+    });
+  }
+
+  const pasteWeekBtn = document.getElementById('paste-week-btn');
+  if (pasteWeekBtn) {
+    pasteWeekBtn.addEventListener('click', () => {
+      if (!store.hasWeekClipboard()) return;
+      if (confirm("Paste the copied week's shifts into this week? This overwrites existing shifts on matching guard/day cells.")) {
+        const count = store.pasteWeek(state.selectedWeek);
+        if (count > 0) showToast(`Pasted ${count} shifts into this week.`, 'success');
+        else showToast(`Nothing to paste.`, 'info');
       }
     });
   }
@@ -11568,6 +12347,9 @@ function attachGlobalEvents(state) {
       if (window.exportSchedulePdf) window.exportSchedulePdf();
     });
   }
+
+  // Schedule notes rich-text editor
+  attachScheduleNotesEvents();
 
   // Guard roster - Add guard
   const addGuardBtn = document.getElementById('add-guard-btn');
@@ -11652,21 +12434,20 @@ function attachGlobalEvents(state) {
         return;
       }
 
-      const currentState = store.getState();
+      const week = store.getState().selectedWeek;
 
       if (crew === 'Both') {
-        // Generate AM first, then PM
-        const amAssignments = generateRotation(day, 'AM', currentState);
-        store.setAllAssignments(amAssignments, currentState.selectedWeek);
-
-        const updatedState = store.getState();
-        const pmAssignments = generateRotation(day, 'PM', updatedState);
-        store.setAllAssignments(pmAssignments, updatedState.selectedWeek);
-
-        showToast(`Auto-assigned AM & PM crews for ${day}`, 'success');
+        // Both crews share the same rotation positions, so generate ONE combined
+        // rotation across all working guards (generating AM then PM separately
+        // would let PM overwrite AM wherever their shifts overlap).
+        store.clearNonManualAssignments(day, 'Both', week);
+        const assignments = generateRotation(day, 'Both', store.getState());
+        store.setAllAssignments(assignments, week);
+        showToast(`Auto-assigned all crews for ${day}`, 'success');
       } else {
-        const assignments = generateRotation(day, crew, currentState);
-        store.setAllAssignments(assignments, currentState.selectedWeek);
+        store.clearNonManualAssignments(day, crew, week);
+        const assignments = generateRotation(day, crew, store.getState());
+        store.setAllAssignments(assignments, week);
         showToast(`Auto-assigned ${crew} crew for ${day}`, 'success');
       }
     });
@@ -11926,8 +12707,110 @@ function formatDuration(minutes) {
   return `${h}h ${m}m`;
 }
 
+// --- Rotation Export (opens a printable sheet in a new browser tab) ---
+window.exportRotationView = function() {
+  const s = store.getState();
+  const day = s.selectedDay;
+  const week = s.selectedWeek;
+  const rawBlocks = store.getBlocksForDay(day, week);
+  const blocks = [...rawBlocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  if (blocks.length === 0) {
+    showToast('No rotation blocks for this day to export.', 'info');
+    return;
+  }
+
+  const excludeDoor = !!(s.settings && s.settings.excludeDoor);
+  let maxStands = 0;
+  blocks.forEach(b => {
+    const st = b.guardCountOverride ?? s.settings.standCount;
+    if (st > maxStands) maxStands = st;
+  });
+  if (maxStands < 1) maxStands = 1;
+  const columns = getPositions(maxStands, excludeDoor);
+
+  // Date label for the selected day.
+  const monday = week ? new Date(week + 'T00:00:00') : new Date(currentWeekStart);
+  const dayIndexMap = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
+  const dDate = new Date(monday);
+  dDate.setDate(monday.getDate() + (dayIndexMap[day] || 0));
+  const dateStr = dDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  const esc = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const rowsHtml = blocks.map(b => {
+    const stands = b.guardCountOverride ?? s.settings.standCount;
+    const isClosed = stands === 0;
+    const timeCell = `${formatTime(b.startTime)} – ${formatTime(b.endTime)}`;
+    const noteHtml = b.note ? `<div class="note">${esc(b.note)}</div>` : '';
+    if (isClosed) {
+      return `<tr><td class="time">${timeCell}${noteHtml}</td><td class="closed" colspan="${columns.length}">Closed</td></tr>`;
+    }
+    const blockPositions = getPositions(stands, excludeDoor);
+    const cells = columns.map(pos => {
+      if (!blockPositions.includes(pos)) return `<td class="na">—</td>`;
+      const gid = store.getAssignment(b.id, pos, week);
+      const guard = gid ? store.getGuardById(gid) : null;
+      return guard ? `<td class="filled">${esc(guard.name)}</td>` : `<td class="empty">—</td>`;
+    }).join('');
+    return `<tr><td class="time">${timeCell}${noteHtml}</td>${cells}</tr>`;
+  }).join('');
+
+  const headCells = columns.map(pos => `<th>${esc(getPositionLabel(pos))}</th>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Rotation — ${esc(day)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Segoe UI, Roboto, Arial, sans-serif; color: #0f172a; background: #f1f5f9; margin: 0; padding: 24px; }
+  .sheet { max-width: 960px; margin: 0 auto; background: #fff; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.12); padding: 24px; }
+  h1 { font-size: 20px; margin: 0 0 2px; }
+  .sub { color: #475569; font-size: 14px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { border: 1px solid #cbd5e1; padding: 7px 10px; text-align: center; }
+  thead th { background: #1e293b; color: #fff; font-weight: 600; }
+  th.time-h, td.time { text-align: left; white-space: nowrap; font-weight: 600; }
+  td.time { background: #f8fafc; }
+  td.time .note { font-weight: 400; font-size: 12px; color: #64748b; margin-top: 2px; }
+  tbody tr:nth-child(even) td { background: #f8fafc; }
+  tbody tr:nth-child(even) td.time { background: #f1f5f9; }
+  td.filled { font-weight: 600; }
+  td.empty, td.na { color: #94a3b8; }
+  td.closed { color: #64748b; font-style: italic; background: #f1f5f9; }
+  .foot { margin-top: 14px; color: #94a3b8; font-size: 11px; }
+  .print-btn { margin: 16px auto 0; display: block; padding: 8px 18px; font-size: 14px; border: none; border-radius: 6px; background: #0d84d0; color: #fff; cursor: pointer; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .sheet { box-shadow: none; max-width: none; padding: 0; }
+    .no-print { display: none !important; }
+  }
+</style></head>
+<body>
+  <div class="sheet">
+    <h1>Rotation Schedule</h1>
+    <div class="sub">${esc(dateStr)}</div>
+    <table>
+      <thead><tr><th class="time-h">Time</th>${headCells}</tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>
+    <div class="foot">Generated ${esc(new Date().toLocaleString())}</div>
+    <button class="print-btn no-print" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  </div>
+</body></html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('Please allow pop-ups to open the rotation sheet.', 'warning');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+};
+
 // --- PDF Export ---
-window.exportSchedulePdf = function() {
+window.exportSchedulePdf = async function() {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
     orientation: 'landscape',
@@ -11946,7 +12829,10 @@ window.exportSchedulePdf = function() {
     currentDay.setDate(monday.getDate() + index);
     return `${dName.charAt(0).toUpperCase() + dName.slice(1)} (${currentDay.getDate()})`;
   })];
-  
+
+  const dayNoteValues = days.map(dName => store.getDayNote(dName, s.selectedWeek) || '');
+  const hasDayNotes = dayNoteValues.some(n => n.trim());
+
   const margin = 8;
   const pageWidth = doc.internal.pageSize.getWidth();
   const usableWidth = pageWidth - margin * 2;
@@ -12046,11 +12932,107 @@ window.exportSchedulePdf = function() {
           data.cell.text = [cellData[0].content, cellData[1].content];
         }
       }
+      if (data.section === 'head' && hasDayNotes) {
+        data.cell.styles.valign = 'top';
+        data.cell.styles.minCellHeight = 34;
+      }
+    },
+    didDrawCell: function(data) {
+      if (data.section === 'head' && data.column.index >= 1) {
+        const note = dayNoteValues[data.column.index - 1];
+        if (note && note.trim()) {
+          const cx = data.cell.x + data.cell.width / 2;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(220, 38, 38);
+          doc.text(note.trim(), cx, data.cell.y + data.cell.height - 6, {
+            align: 'center',
+            maxWidth: data.cell.width - 6
+          });
+        }
+      }
     }
   });
 
-  doc.save(filename);
+  // --- Append rich-text notes below the last row ---
+  await appendNotesToPdf(doc, margin);
+
+  try {
+    doc.setProperties({ title: filename.replace(/\.pdf$/, '') });
+  } catch (e) {}
+  const blobUrl = doc.output('bloburl');
+  const win = window.open(blobUrl, '_blank');
+  if (!win) {
+    showToast('Please allow pop-ups to open the schedule PDF.', 'warning');
+  }
 };
+
+// Renders the schedule notes (rich HTML) as an image at the bottom of the PDF,
+// preserving font size, color, and bold/italic/underline formatting.
+async function appendNotesToPdf(doc, margin) {
+  const notesHtml = (store.getState().scheduleNotes || '').trim();
+  if (!notesHtml) return;
+
+  // Skip if the notes contain no actual text/content.
+  const probe = document.createElement('div');
+  probe.innerHTML = notesHtml;
+  if (!probe.textContent.trim() && !probe.querySelector('img')) return;
+  if (typeof window.html2canvas !== 'function') return;
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const usableWidth = pageWidth - margin * 2;
+
+  // Off-screen container sized to the PDF's usable width (at ~2x for crisp text).
+  const RENDER_SCALE = 2;
+  const container = document.createElement('div');
+  container.style.cssText = `position:fixed; left:-10000px; top:0; width:${usableWidth * RENDER_SCALE}px; ` +
+    `padding:${4 * RENDER_SCALE}px ${10 * RENDER_SCALE}px ${8 * RENDER_SCALE}px; background:#ffffff; color:#1e293b; ` +
+    `font-family:Inter, Arial, sans-serif; font-size:${10.5 * RENDER_SCALE}px; line-height:1.5; ` +
+    `word-wrap:break-word; box-sizing:border-box;`;
+  container.innerHTML = notesHtml;
+  document.body.appendChild(container);
+
+  let canvas;
+  try {
+    canvas = await window.html2canvas(container, { scale: 1, backgroundColor: '#ffffff', useCORS: true });
+  } catch (e) {
+    document.body.removeChild(container);
+    return;
+  }
+  document.body.removeChild(container);
+
+  const pxPerPt = canvas.width / usableWidth;
+
+  // Start the notes directly below the last table row (no heading).
+  let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 32) + 6;
+  if (y > pageHeight - margin - 40) { doc.addPage(); y = margin + 14; }
+
+  // Draw the notes image, slicing across pages if it is taller than the page.
+  let remainingPx = canvas.height;
+  let srcY = 0;
+  while (remainingPx > 0) {
+    const availPt = pageHeight - margin - y;
+    const availPx = Math.max(0, Math.floor(availPt * pxPerPt));
+    if (availPx < 20) { doc.addPage(); y = margin + 10; continue; }
+
+    const slicePx = Math.min(remainingPx, availPx);
+    const slice = document.createElement('canvas');
+    slice.width = canvas.width;
+    slice.height = slicePx;
+    const ctx = slice.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, slice.width, slice.height);
+    ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+
+    const sliceHeightPt = slicePx / pxPerPt;
+    doc.addImage(slice.toDataURL('image/png'), 'PNG', margin, y, usableWidth, sliceHeightPt);
+
+    srcY += slicePx;
+    remainingPx -= slicePx;
+    if (remainingPx > 0) { doc.addPage(); y = margin + 10; }
+  }
+}
 
 // ════════════════════════════════════════════════════════════
 // ─── Mobile Read-Only Portal
@@ -12480,6 +13462,12 @@ function renderReadOnlyLessonsPortal(state) {
     lessonsToRender = lessonsToRender.filter(l => hasLessonConflict(l, state));
   }
 
+  // Guards who teach at least one lesson this week — for the filter strip.
+  const teachingGuards = [...new Set(allLessons.map(l => String(l.guardId)))]
+    .map(id => store.getGuardById(id))
+    .filter(Boolean)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   let prevDisabled = '';
   let nextDisabled = '';
   if (state.isReadOnly && state.sharedWeek) {
@@ -12512,15 +13500,6 @@ function renderReadOnlyLessonsPortal(state) {
           <span class="week-label" id="lessons-week-label" style="font-weight:600; font-size:var(--font-sm);">${formatWeekLabel(currentWeekStart)}</span>
           <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(7)" title="Next Week" ${nextDisabled}>▶</button>
         </div>
-        <div class="lessons-filter-container" style="display:flex; align-items:center; gap:8px; margin-left: 15px;">
-          <span class="text-xs text-secondary" style="font-weight:500;">Filter Guard:</span>
-          <select class="form-input" id="read-only-lessons-guard-filter" style="height: 32px; padding: 0 8px; font-size: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-strong); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;">
-            <option value="all" ${filterGuardId === 'all' ? 'selected' : ''}>All Guards</option>
-            ${[...state.guards].sort((a,b)=>a.name.localeCompare(b.name)).map(g => `
-              <option value="${g.id}" ${String(filterGuardId) === String(g.id) ? 'selected' : ''}>${escapeHtml(g.name)}</option>
-            `).join('')}
-          </select>
-        </div>
         <div class="show-conflicts-container" style="display:flex; align-items:center; gap:6px; margin-left: 10px; background: rgba(239, 68, 68, 0.1); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid rgba(239, 68, 68, 0.3);">
           <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: #ef4444; cursor: pointer; user-select: none; margin: 0;">
             <input type="checkbox" id="read-only-lessons-show-conflicts" ${state.showConflictsOnly ? 'checked' : ''} 
@@ -12534,6 +13513,18 @@ function renderReadOnlyLessonsPortal(state) {
     <div class="main-content read-only-content" style="padding: 16px;">
       <div class="lessons-layout">
         <div class="card">
+          <div class="lesson-guard-strip">
+            <button class="lesson-guard-chip ${filterGuardId === 'all' ? 'active' : ''}" onclick="window.__setLessonFilter('all')" title="Show all guards">
+              <span class="lgc-name">All Guards</span>
+              <span class="lgc-pill lgc-pill-all"></span>
+            </button>
+            ${teachingGuards.map(g => `
+              <button class="lesson-guard-chip ${String(filterGuardId) === String(g.id) ? 'active' : ''}" onclick="window.__setLessonFilter('${g.id}')" title="Filter to ${escapeHtml(g.name)}">
+                <span class="lgc-name">${escapeHtml(g.name)}</span>
+                <span class="lgc-pill" style="background:${safeHexColor(g.color)};"></span>
+              </button>
+            `).join('')}
+          </div>
           <div class="card-body" style="padding:0; overflow-x: auto;">
             <div class="calendar-container" style="min-width: 800px; height: 600px; display: flex; flex-direction: column;">
               
@@ -12585,23 +13576,19 @@ function renderReadOnlyLessonsPortal(state) {
                           const guard = store.getGuardById(lesson.guardId);
                           const guardName = guard ? guard.name : 'Unknown Guard';
                           const crewClass = guard ? (guard.crewSection === 'AM' ? 'am-lesson' : 'pm-lesson') : 'neutral-lesson';
-                          const cardStyle = guard && guard.color
-                            ? `background: linear-gradient(135deg, ${hexToRgba(guard.color, 0.35)} 0%, ${hexToRgba(guard.color, 0.15)} 100%) !important; border-left: 3px solid ${guard.color} !important; color: #ffffff !important;`
+                          const cardColor = safeHexColor(guard && guard.color, '');
+                          const cardStyle = cardColor
+                            ? `background: linear-gradient(135deg, ${hexToRgba(cardColor, 0.35)} 0%, ${hexToRgba(cardColor, 0.15)} 100%) !important; border-left: 3px solid ${cardColor} !important; color: #ffffff !important;`
                             : '';
-                          
+
                           return `
-                            <div class="lesson-card ${crewClass} read-only" 
+                            <div class="lesson-card ${crewClass} read-only"
                                  onclick="window.__showReadOnlyLessonModal('${lesson.id}')"
-                                 style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); display: flex; flex-direction: column; justify-content: space-between; overflow: hidden; z-index: 10; pointer-events: auto; cursor: pointer; ${cardStyle}"
-                                 title="${escapeHtml(guardName)} - ${formatTime(lesson.startTime)} (${lesson.durationMinutes}m)${lesson.subject ? `\nSubject: ${escapeHtml(lesson.subject)}` : ''}${lesson.notes ? `\nNotes: ${escapeHtml(lesson.notes)}` : ''}">
-                              <div class="lesson-card-header" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.1; margin-bottom: 2px; color: var(--text-primary);">
-                                ${escapeHtml(guardName)}
-                                ${lesson.subject ? `<div style="font-weight: 500; font-size: 0.65rem; opacity: 0.85; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" class="lesson-card-subject">${escapeHtml(lesson.subject)}</div>` : ''}
-                              </div>
-                              <div class="lesson-card-meta" style="font-size: 0.65rem; color: rgba(255,255,255,0.85); display: flex; justify-content: space-between; align-items: flex-end;">
-                                <span>${formatTime(lesson.startTime)}</span>
-                                <span>${lesson.durationMinutes}m</span>
-                              </div>
+                                 onmouseenter="window.__showLessonTip(event, '${lesson.id}')"
+                                 onmousemove="window.__moveLessonTip(event)"
+                                 onmouseleave="window.__hideLessonTip()"
+                                 style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; z-index: 10; pointer-events: auto; cursor: pointer; ${cardStyle}">
+                              <span class="lesson-card-name" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.15; color: #ffffff; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(guardName)}</span>
                             </div>
                           `;
                         }).join('')}
@@ -12668,8 +13655,6 @@ function attachReadOnlyLessonsPortalEvents(state) {
     });
   }
 }
-
-
 
 
 </script>
