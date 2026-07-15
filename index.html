@@ -1221,6 +1221,7 @@ body::before {
 /* Daily tracker sort chips */
 .tracker-sort {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin-bottom: 10px;
 }
@@ -1234,6 +1235,7 @@ body::before {
   color: var(--text-secondary);
   cursor: pointer;
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 .tracker-sort-btn:hover {
   border-color: var(--border-default);
@@ -3283,6 +3285,84 @@ body::before {
   font-weight: 600;
 }
 
+
+.lesson-card.has-conflict {
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
+}
+.lesson-conflict-dot {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.95);
+  z-index: 12;
+  pointer-events: none;
+}
+
+.assignment-slot.has-conflict {
+  outline: 2px solid #ef4444;
+  outline-offset: -2px;
+}
+.slot-conflict-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.95);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.master-banner {
+  background: linear-gradient(90deg, rgba(167,139,250,0.22), rgba(167,139,250,0.08));
+  color: #c4b5fd;
+  border-bottom: 1px solid rgba(167,139,250,0.35);
+  padding: 8px 16px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+.schedule-layout.master-mode .schedule-grid-container > .card {
+  background: rgba(124, 58, 237, 0.10);
+  border: 1px solid rgba(167, 139, 250, 0.45);
+  box-shadow: 0 0 0 1px rgba(167,139,250,0.15), 0 8px 30px rgba(124,58,237,0.12);
+}
+.schedule-layout.master-mode .weekly-grid th {
+  background: rgba(124, 58, 237, 0.16);
+}
+
+.schedule-mode-toggle {
+  display: inline-flex;
+  gap: 2px;
+  margin-top: 6px;
+  padding: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+}
+.schedule-mode-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.schedule-mode-btn:hover { color: var(--text-primary); }
+.schedule-mode-btn.active { background: var(--primary-600); color: #fff; }
+.schedule-mode-btn.master.active { background: #7c3aed; }
 </style>
 </head>
 <body>
@@ -3470,6 +3550,83 @@ function migrateBlockCreationWindows(win) {
   return migrated;
 }
 
+// ─── Sync canonicalization ─────────────────────────────
+// The sync engine decides "did the user change anything since the last sync?"
+// by string-comparing the current export against a stored baseline. Plain
+// JSON.stringify is insertion-order sensitive and the stored baseline may have
+// been written by an older app version (with fewer/reordered default settings),
+// so logically-identical data could serialize differently and register as a
+// phantom edit — which then surfaces as a spurious sync conflict. These helpers
+// produce a deterministic, migration-normalized form so equal data always
+// yields an equal string, on any device and across app versions.
+
+// Recursive JSON serializer with keys sorted alphabetically at every level.
+// Matches JSON.stringify semantics for undefined/function values.
+function stableStringify(value) {
+  if (value === undefined || typeof value === 'function' || typeof value === 'symbol') {
+    return undefined;
+  }
+  if (value === null || typeof value !== 'object') {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    const items = value.map(v => {
+      const s = stableStringify(v);
+      return s === undefined ? 'null' : s; // JSON.stringify turns undefined items into null
+    });
+    return '[' + items.join(',') + ']';
+  }
+  const parts = [];
+  for (const key of Object.keys(value).sort()) {
+    const s = stableStringify(value[key]);
+    if (s === undefined) continue; // drop undefined-valued keys, like JSON.stringify
+    parts.push(JSON.stringify(key) + ':' + s);
+  }
+  return '{' + parts.join(',') + '}';
+}
+
+// Apply the same settings defaults/migrations the app applies on load, so a
+// baseline missing newly-added default keys (older version) compares equal to
+// the current migrated state. The stored value always wins over the default,
+// so genuine user edits are preserved. TeamUp creds are stripped to match the
+// sync export. This is idempotent: safe to run on already-migrated settings.
+function normalizeSettingsForSync(settings) {
+  const merged = { ...defaultSettings, ...settings };
+  if (settings.doorCreditPercent !== undefined && settings.doorCreditMultiplier === undefined) {
+    merged.doorCreditMultiplier = settings.doorCreditPercent / 100;
+  }
+  if (settings.defaultShiftTimes) {
+    merged.defaultShiftTimes = {
+      AM: { ...defaultSettings.defaultShiftTimes.AM, ...(settings.defaultShiftTimes.AM || {}) },
+      PM: { ...defaultSettings.defaultShiftTimes.PM, ...(settings.defaultShiftTimes.PM || {}) }
+    };
+  }
+  merged.blockCreationWindows = migrateBlockCreationWindows(settings.blockCreationWindows);
+  delete merged.teamupApiKey;
+  delete merged.teamupCalendarKey;
+  return merged;
+}
+
+// Normalize a sync JSON payload into its canonical, comparison-safe form:
+// drop the transport-only revision marker, migrate settings, sort all keys.
+// Returns the input unchanged if it isn't valid JSON.
+function normalizeSyncPayload(jsonString) {
+  if (jsonString == null) return jsonString;
+  let data;
+  try {
+    data = JSON.parse(jsonString);
+  } catch (e) {
+    return jsonString;
+  }
+  if (data && typeof data === 'object' && !Array.isArray(data)) {
+    delete data._syncRevision;
+    if (data.settings && typeof data.settings === 'object') {
+      data.settings = normalizeSettingsForSync(data.settings);
+    }
+  }
+  return stableStringify(data);
+}
+
 function loadState() {
   try {
     const saved = localStorage.getItem(STORE_KEY);
@@ -3494,7 +3651,7 @@ function loadState() {
         manualAssignments: parsed.manualAssignments || {},
         isReadOnly: false,
         selectedFilterGuardId: parsed.selectedFilterGuardId || 'all',
-        selectedWeek: parsed.selectedWeek || getWeekStr(getMonday(new Date())),
+        selectedWeek: (parsed.selectedWeek && parsed.selectedWeek !== '__master__') ? parsed.selectedWeek : getWeekStr(getMonday(new Date())),
         isLessonsOnly: false,
         sharedWeek: null
       };
@@ -4275,20 +4432,21 @@ const store = {
       scheduleNotes,
       dayNotes
     } = state;
-    const cleanSettings = { ...settings };
-    delete cleanSettings.teamupApiKey;
-    delete cleanSettings.teamupCalendarKey;
-    return JSON.stringify({
+    // Canonicalize via normalizeSyncPayload (sorted keys + normalized settings)
+    // so the serialized form is deterministic across devices and app versions.
+    // This string drives the dirty/conflict comparison, so any non-determinism
+    // here produces phantom sync conflicts.
+    return normalizeSyncPayload(JSON.stringify({
       guards,
       shifts,
       rotationBlocks,
       blockAssignments,
       lessons,
-      settings: cleanSettings,
+      settings,
       manualMode,
       scheduleNotes,
       dayNotes
-    });
+    }));
   },
 
   exportSharedData(targetWeek) {
@@ -4686,6 +4844,53 @@ const store = {
     return true;
   },
 
+  copyShiftsBetweenWeeks(sourceWeek, targetWeek) {
+    if (!sourceWeek || !targetWeek || sourceWeek === targetWeek) return 0;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const newShifts = { ...state.shifts };
+    let count = 0;
+    for (const guard of state.guards) {
+      for (const day of days) {
+        const sh = state.shifts[`${guard.id}-${day}-${sourceWeek}`];
+        if (sh) {
+          newShifts[`${guard.id}-${day}-${targetWeek}`] = { ...sh, week: targetWeek };
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      pushUndo();
+      state = { ...state, shifts: newShifts };
+      notify();
+    }
+    return count;
+  },
+
+  overwriteWeekFrom(sourceWeek, targetWeek) {
+    if (!sourceWeek || !targetWeek || sourceWeek === targetWeek) return 0;
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const newShifts = { ...state.shifts };
+    for (const guard of state.guards) {
+      for (const day of days) {
+        delete newShifts[`${guard.id}-${day}-${targetWeek}`];
+      }
+    }
+    let count = 0;
+    for (const guard of state.guards) {
+      for (const day of days) {
+        const sh = state.shifts[`${guard.id}-${day}-${sourceWeek}`];
+        if (sh) {
+          newShifts[`${guard.id}-${day}-${targetWeek}`] = { ...sh, week: targetWeek };
+          count++;
+        }
+      }
+    }
+    pushUndo();
+    state = { ...state, shifts: newShifts };
+    notify();
+    return count;
+  },
+
   // ─── Copy / Paste: one guard's whole week ─────────────
   copyGuardWeek(guardId, week) {
     const w = week || state.selectedWeek;
@@ -4851,7 +5056,10 @@ const LAST_SYNCED_JSON_KEY = 'lifeguard-rotation-last-synced-json-v1';
 
 function loadLastSyncedJSON() {
   try {
-    return localStorage.getItem(LAST_SYNCED_JSON_KEY);
+    // Normalize on read: a baseline persisted by an older app version (or with
+    // a different key order) is canonicalized to match the current export
+    // format, so it doesn't read as a phantom edit and trigger a false conflict.
+    return normalizeSyncPayload(localStorage.getItem(LAST_SYNCED_JSON_KEY));
   } catch (e) {
     return null;
   }
@@ -5076,27 +5284,41 @@ async function isCloudVersionNewer(gist, cloudUpdatedAt) {
   }
   if (content) {
     try {
+      // CONTENT is the source of truth for "is the cloud newer than us?".
+      // A device must NEVER treat its own just-pushed data as newer just
+      // because a counter or timestamp drifted — e.g. a silent localStorage
+      // write failure left syncRevision behind, or GitHub's updated_at (and
+      // even a read replica) is eventually consistent. So whenever we can
+      // compare the cloud payload against our synced baseline, that decides it.
+      if (lastSyncedJSON != null) {
+        const contentDiffers = normalizeSyncPayload(content) !== lastSyncedJSON;
+        if (!contentDiffers) {
+          // Canonically identical to what we already hold. NOT newer, full stop.
+          // This is what breaks the "device pulls its own push" loop, even if
+          // the revision counter or updated_at say otherwise.
+          return false;
+        }
+        // The cloud genuinely differs from our baseline. Treat it as newer
+        // UNLESS its revision counter is behind ours — that means we fetched a
+        // stale/older read replica, and we must not pull it over newer data.
+        let cloudRevision = 0;
+        try { cloudRevision = JSON.parse(content)._syncRevision || 0; } catch (e) {}
+        const localRevision = syncRevision || 0;
+        if (cloudRevision < localRevision) return false;
+        return true;
+      }
+      // No baseline yet (first connection) — fall back to the revision counter.
       const cloudData = JSON.parse(content);
       const cloudRevision = cloudData._syncRevision || 0;
       const localRevision = syncRevision || 0;
-
-      if (cloudRevision > localRevision) {
-        return true;
-      }
-      // NOTE: We intentionally do NOT return false on revision equality.
-      // Each device increments its own counter, so two devices can both go
-      // 5 → 6 independently and reach the same revision with DIFFERENT content
-      // (e.g. after a forced-push conflict resolution). Declaring "in sync" on
-      // the counter alone would hide that divergence permanently. Instead we
-      // fall through to the timestamp comparison below: lastGistSyncTime is set
-      // to the cloud's exact updated_at after every push/pull, so equal
-      // revisions with identical content give cloudTime === localTime (not
-      // newer), while genuine divergence gives cloudTime > localTime.
+      if (cloudRevision > localRevision) return true;
     } catch (e) {
       console.warn('Failed to parse cloud content for revision check:', e);
     }
   }
 
+  // No readable content or no baseline to compare against — fall back to the
+  // timestamp heuristic (best-effort for first-connection / unusual states).
   if (lastGistSyncTime) {
     const cloudTime = new Date(cloudUpdatedAt).getTime();
     const localTime = new Date(lastGistSyncTime).getTime();
@@ -5333,6 +5555,10 @@ const syncManager = {
   },
 
   initialize() {
+    // Build stamp — confirms which sync logic is actually loaded in the browser.
+    // If you don't see this line in the DevTools console, you're running cached
+    // code and need a hard refresh (Ctrl+Shift+R).
+    console.info('[lifeguard-sync] build 2026-07-15b — content-primary conflict detection');
     this.reinitialize();
   },
 
@@ -6136,6 +6362,11 @@ function getPositions(standCount = 2, excludeDoor = false) {
   return positions;
 }
 
+/**
+ * Display order for the rotation grid and PDF: Door first, then stands in
+ * descending order (e.g. Door, Stand 2, Stand 1). Purely visual — the
+ * assignment logic still uses getPositions().
+ */
 function getDisplayPositions(standCount = 2, excludeDoor = false) {
   return getPositions(standCount, excludeDoor).slice().reverse();
 }
@@ -7721,11 +7952,43 @@ const selectedBlockIds = new Set();
 let lastRenderedDay = null;
 let lastRenderedTab = null;
 let trackerSort = 'start'; // daily tracker sort: 'start' (shift start time) | 'percent' (lowest first)
+let trackerTimeline = false; // daily tracker bar mode: false = proportion bar, true = time-scaled timeline
 
 window.__setTrackerSort = (mode) => {
   trackerSort = mode;
   if (typeof render === 'function') render();
 };
+
+window.__toggleTrackerTimeline = () => {
+  trackerTimeline = !trackerTimeline;
+  if (typeof render === 'function') render();
+};
+
+// Build time-positioned segments for one guard's day: rotation-block stand/door
+// assignments plus lessons, each as { start, end, type } in minutes. Used by the
+// daily tracker's Timeline View to show the flow (and gaps) of a guard's day.
+function getGuardDaySegments(guardId, day, week, blocks, lessons, settings) {
+  const segs = [];
+  const excludeDoor = !!(settings && settings.excludeDoor);
+  const sorted = [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  sorted.forEach(b => {
+    const stands = b.guardCountOverride ?? settings.standCount;
+    if (!stands || stands < 1) return;
+    const positions = getPositions(stands, excludeDoor);
+    for (const pos of positions) {
+      if (store.getAssignment(b.id, pos, week) === guardId) {
+        segs.push({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime), type: isStandPosition(pos) ? 'stand' : 'door' });
+        break;
+      }
+    }
+  });
+  (lessons || []).forEach(l => {
+    if (String(l.guardId) === String(guardId) && l.day === day) {
+      segs.push({ start: timeToMinutes(l.startTime), end: timeToMinutes(l.endTime), type: 'lesson' });
+    }
+  });
+  return segs;
+}
 
 function getMonday(d) {
   const date = new Date(d);
@@ -7762,31 +8025,28 @@ function getFilteredLessonsForWeek(state) {
   return (state.lessons || []).filter(l => l.week === weekStr);
 }
 
-function hasLessonConflict(lesson, state) {
+function getLessonConflictReason(lesson, state) {
   const gId = lesson.guardId;
   const currentDay = lesson.day;
   const w = lesson.week;
   const startMin = timeToMinutes(lesson.startTime);
   const endMin = startMin + parseInt(lesson.durationMinutes);
 
-  // 1. Shift check
   const shift = store.getShift(gId, currentDay, w);
-  if (!shift) return true;
+  if (!shift) return 'Guard is not scheduled to work this day';
   const shiftStart = shift.startTime ? timeToMinutes(shift.startTime) : 0;
   const shiftEnd = shift.endTime ? timeToMinutes(shift.endTime) : 0;
-  if (startMin < shiftStart || endMin > shiftEnd) return true;
+  if (startMin < shiftStart || endMin > shiftEnd) return "Lesson is outside the guard's shift hours";
 
-  // 2. Lesson overlap check
-  const hasLessonOverlap = (state.lessons || []).some(l => {
+  const other = (state.lessons || []).find(l => {
     if (l.id === lesson.id) return false;
     if (String(l.guardId) !== String(gId) || l.day !== currentDay || l.week !== w) return false;
     const lStart = timeToMinutes(l.startTime);
     const lEnd = timeToMinutes(l.endTime);
     return startMin < lEnd && endMin > lStart;
   });
-  if (hasLessonOverlap) return true;
+  if (other) return `Overlaps another lesson (${formatTime(other.startTime)} – ${formatTime(other.endTime)})`;
 
-  // 3. Rotation block assignment check
   const blocks = store.getBlocksForDay(currentDay, w);
   let hasAssignmentOverlap = false;
   blocks.forEach(block => {
@@ -7807,14 +8067,64 @@ function hasLessonConflict(lesson, state) {
       });
     }
   });
+  if (hasAssignmentOverlap) return 'Guard is assigned to a rotation block at this time';
 
-  if (hasAssignmentOverlap) return true;
+  return null;
+}
 
-  return false;
+function hasLessonConflict(lesson, state) {
+  return getLessonConflictReason(lesson, state) !== null;
 }
 
 const initialWeek = store.getState().selectedWeek;
 let currentWeekStart = initialWeek ? new Date(initialWeek + 'T00:00:00') : getMonday(new Date());
+
+const MASTER_WEEK = '__master__';
+let savedRealWeek = null;
+
+window.__toggleMasterSchedule = () => {
+  const st = store.getState();
+  if (st.selectedWeek === MASTER_WEEK) {
+    store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
+  } else {
+    savedRealWeek = st.selectedWeek;
+    store.setSelectedWeek(MASTER_WEEK);
+  }
+};
+
+window.__setMasterSchedule = (on) => {
+  const isMaster = store.getState().selectedWeek === MASTER_WEEK;
+  if (on !== isMaster) window.__toggleMasterSchedule();
+};
+
+window.__copyMasterToWeek = () => {
+  const target = savedRealWeek || store.getState().selectedWeek;
+  if (!target || target === MASTER_WEEK) { showToast('No target week to copy into.', 'info'); return; }
+  if (confirm(`Copy the Master Schedule into the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))}? This overwrites matching shifts in that week.`)) {
+    const n = store.copyShiftsBetweenWeeks(MASTER_WEEK, target);
+    store.setSelectedWeek(target);
+    showToast(n > 0 ? `Copied ${n} shifts from Master into the week.` : 'The Master Schedule has no shifts to copy.', n > 0 ? 'success' : 'info');
+  }
+};
+
+window.__overwriteWeekWithMaster = () => {
+  const target = savedRealWeek || store.getState().selectedWeek;
+  if (!target || target === MASTER_WEEK) { showToast('No target week to overwrite.', 'info'); return; }
+  if (confirm(`Overwrite the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))} with the Master Schedule? This CLEARS all existing shifts in that week first, then applies the Master.`)) {
+    const n = store.overwriteWeekFrom(MASTER_WEEK, target);
+    store.setSelectedWeek(target);
+    showToast(`Overwrote the week — now an exact copy of the Master (${n} shifts).`, 'success');
+  }
+};
+
+window.__saveWeekToMaster = () => {
+  const src = store.getState().selectedWeek;
+  if (!src || src === MASTER_WEEK) return;
+  if (confirm('Save this week\'s shifts as the Master Schedule? This overwrites the existing Master.')) {
+    const n = store.copyShiftsBetweenWeeks(src, MASTER_WEEK);
+    showToast(n > 0 ? `Saved ${n} shifts to the Master Schedule.` : 'This week has no shifts to save.', n > 0 ? 'success' : 'info');
+  }
+};
 
 // "Universal emoji" is a DEVICE-LOCAL preference (not part of synced settings),
 // so a Win7 machine can opt in without the choice syncing to or being
@@ -7864,10 +8174,14 @@ function render() {
   const windowScrollX = typeof window !== 'undefined' ? (window.scrollX || 0) : 0;
   const windowScrollY = typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
 
-  if (state.selectedWeek) {
+  if (state.selectedWeek === MASTER_WEEK && state.activeTab !== 'schedule') {
+    store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
+    return;
+  }
+  if (state.selectedWeek && state.selectedWeek !== MASTER_WEEK) {
     currentWeekStart = new Date(state.selectedWeek + 'T00:00:00');
   }
-  
+
   if (state.selectedDay !== lastRenderedDay || state.activeTab !== lastRenderedTab) {
     selectedBlockIds.clear();
     lastRenderedDay = state.selectedDay;
@@ -8158,6 +8472,7 @@ function renderSubNav(state) {
   const days = store.getDays();
   const crewOptions = ['AM', 'PM', 'Both'];
   const daySelectorDisabled = state.activeTab === 'schedule' || state.activeTab === 'lessons';
+  const isMaster = state.selectedWeek === MASTER_WEEK;
 
   return `
     <div class="sub-nav">
@@ -8185,9 +8500,9 @@ function renderSubNav(state) {
       </div>
 
       <div class="week-navigator" style="display:flex; align-items:center; gap:8px; flex: 0 0 auto; justify-content: center;">
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(-7)" title="Previous Week">◀</button>
-        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);" onclick="window.__navigateToCurrentWeek()" title="Go to Current Week">${formatWeekLabel(currentWeekStart)}</span>
-        <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(7)" title="Next Week">▶</button>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(-7)" title="Previous Week" ${isMaster ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>◀</button>
+        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);${isMaster ? ' color:#a78bfa;' : ''}" ${isMaster ? '' : 'onclick="window.__navigateToCurrentWeek()" title="Go to Current Week"'}>${isMaster ? '🗂️ Master Schedule' : formatWeekLabel(currentWeekStart)}</span>
+        <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(7)" title="Next Week" ${isMaster ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▶</button>
       </div>
 
       <div class="crew-toggle-container" style="flex: 1; display: flex; justify-content: flex-end;">
@@ -8224,20 +8539,29 @@ function renderActiveTab(state) {
 // ════════════════════════════════════════════════════════════
 
 function renderScheduleTab(state) {
+  const isMaster = state.selectedWeek === MASTER_WEEK;
   return `
-    <div class="schedule-layout">
+    <div class="schedule-layout${isMaster ? ' master-mode' : ''}">
       <div class="schedule-grid-container">
         <div class="card">
+          ${isMaster ? `<div class="master-banner">🗂️ Master Schedule — baseline template for reference. Edit freely, then use “Copy Master → Week”. This never affects real-week availability or conflicts.</div>` : ''}
           <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
             <div class="flex items-center gap-3" style="flex-wrap: wrap;">
               <div>
-                <h2>Weekly Schedule</h2>
-                <span class="text-xs text-tertiary">Click any cell to set shift times</span>
+                <h2>${isMaster ? 'Master Schedule' : 'Weekly Schedule'}</h2>
+                <div class="schedule-mode-toggle">
+                  <button class="schedule-mode-btn ${!isMaster ? 'active' : ''}" onclick="window.__setMasterSchedule(false)" title="Edit the live weekly schedule">📅 Weekly</button>
+                  <button class="schedule-mode-btn master ${isMaster ? 'active' : ''}" onclick="window.__setMasterSchedule(true)" title="Edit the reference Master Schedule">🗂️ Master</button>
+                </div>
               </div>
             </div>
             <div class="flex gap-2">
+              ${isMaster
+                ? `<button class="btn btn-secondary btn-sm" id="copy-master-to-week-btn" title="Copy the Master Schedule into your current week (merges over existing shifts)">📥 Copy Master → Week</button>
+              <button class="btn btn-secondary btn-sm" id="overwrite-week-btn" title="Clear the current week, then replace it with the Master Schedule">♻️ Overwrite Week</button>`
+                : `<button class="btn btn-secondary btn-sm" id="save-week-to-master-btn" title="Save this week's shifts as the Master Schedule">💾 Save to Master</button>
               <button class="btn btn-secondary btn-sm" id="copy-week-btn" title="Copy all shifts from this week">📋 Copy Week</button>
-              <button class="btn btn-secondary btn-sm" id="paste-week-btn" title="Paste the copied week's shifts into this week" ${store.hasWeekClipboard() ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>📥 Paste Week</button>
+              <button class="btn btn-secondary btn-sm" id="paste-week-btn" title="Paste the copied week's shifts into this week" ${store.hasWeekClipboard() ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>📥 Paste Week</button>`}
               <button class="btn btn-secondary btn-sm" id="share-link-btn" title="Generate shareable URL link for guards">🔗 Share Link</button>
               <button class="btn btn-secondary btn-sm" id="export-pdf-btn">Export PDF</button>
             </div>
@@ -8408,12 +8732,14 @@ function renderWeeklyGrid(state) {
         <tr>
           <th style="text-align:left;">Guard</th>
           ${days.map((d, idx) => {
+            const isMaster = state.selectedWeek === MASTER_WEEK;
             const dayDate = new Date(currentWeekStart);
             dayDate.setDate(dayDate.getDate() + idx);
             const dateNum = dayDate.getDate();
             const dayNote = store.getDayNote(d, state.selectedWeek);
             const noteMark = dayNote ? ` <span title="${escapeHtml(dayNote)}">📝</span>` : '';
-            return `<th class="day-col-header" style="cursor:pointer;" title="Click to add or edit a note for ${d}" onclick="window.__editDayNote('${d}')">${d.slice(0, 3)} (${dateNum})${noteMark}</th>`;
+            const label = isMaster ? d.slice(0, 3) : `${d.slice(0, 3)} (${dateNum})`;
+            return `<th class="day-col-header" style="cursor:pointer;" title="Click to add or edit a note for ${d}" onclick="window.__editDayNote('${d}')">${label}${noteMark}</th>`;
           }).join('')}
         </tr>
       </thead>
@@ -8816,8 +9142,16 @@ function renderBlockAssignments(block, standCount, state) {
     const guardId = store.getAssignment(block.id, pos, state.selectedWeek);
     const guard = guardId ? store.getGuardById(guardId) : null;
     const posType = isStandPosition(pos) ? 'stand' : 'door';
+    let conflictReason = null;
+    if (guardId) {
+      const chk = canAssignGuardToBlockPos(guardId, block, pos, state);
+      if (!chk.valid) conflictReason = chk.reason;
+    }
+    const conflictAttrs = conflictReason
+      ? ` data-conflict="${escapeHtml(conflictReason)}" onmouseenter="window.__showSlotConflictTip(event, this)" onmousemove="window.__moveLessonTip(event)" onmouseleave="window.__hideLessonTip()"`
+      : '';
     return `
-      <div class="assignment-slot ${posType} ${guard ? 'filled' : ''}"
+      <div class="assignment-slot ${posType} ${guard ? 'filled' : ''}${conflictReason ? ' has-conflict' : ''}"
            data-block-id="${block.id}" data-position="${pos}"
            id="slot-${block.id}-${pos}"
            draggable="${guard ? 'true' : 'false'}"
@@ -8826,7 +9160,8 @@ function renderBlockAssignments(block, standCount, state) {
            ondragover="window.__onDragOver(event)"
            ondrop="window.__onDrop(event, '${block.id}', '${pos}')"
            ondragleave="window.__onDragLeave(event)"
-           ondragend="window.__onDragEnd(event)">
+           ondragend="window.__onDragEnd(event)"${conflictAttrs}>
+        ${conflictReason ? '<span class="slot-conflict-dot"></span>' : ''}
         <span class="position-label">${getPositionLabel(pos)}</span>
         <span class="assigned-guard">${guard ? guard.name : '- empty -'}</span>
       </div>
@@ -8915,6 +9250,10 @@ function renderDailyTracker(state) {
           <div class="tracker-sort">
             <button class="tracker-sort-btn ${trackerSort === 'start' ? 'active' : ''}" onclick="window.__setTrackerSort('start')">🕒 Start time</button>
             <button class="tracker-sort-btn ${trackerSort === 'percent' ? 'active' : ''}" onclick="window.__setTrackerSort('percent')">⬇️ Lowest %</button>
+            <label class="tracker-sort-btn" style="display:inline-flex; align-items:center; gap:5px;" title="Show each guard's day as a time-scaled timeline">
+              <input type="checkbox" ${trackerTimeline ? 'checked' : ''} onchange="window.__toggleTrackerTimeline()" style="margin:0; cursor:pointer;" />
+              Timeline
+            </label>
           </div>
           <div class="tracker-panel">
             ${entries.map(({ g, st, shift }) => {
@@ -8958,6 +9297,71 @@ function renderDailyTracker(state) {
               const lessonCalc = catCalc(st.rawLessonMinutes, lessonMult, 'lesson');
               const doorCalc = catCalc(st.doorMinutes, doorMult, 'door');
 
+              // The rotation track: either a proportion bar (default) or a
+              // time-scaled timeline (Timeline View) showing the flow and gaps.
+              const proportionTrack = `
+                    <div style="position:relative; flex:1; min-width:0; height:8px;">
+                      <div class="stand-time-track" style="position:absolute; inset:0;">
+                        <div style="position:absolute; left:0; width:${standW}%; top:0; bottom:0; background:#3b82f6;"></div>
+                        <div style="position:absolute; left:${standW}%; width:${lessonW}%; top:0; bottom:0; background:#2dd4a8;"></div>
+                        <div style="position:absolute; left:${standW + lessonW}%; width:${doorW}%; top:0; bottom:0; background:#9a6a3a;"></div>
+                      </div>
+                      <div style="position:absolute; inset:0;">
+                        ${standW > 0 ? `<span class="credit-tip" style="position:absolute; left:0; width:${standW}%; top:0; bottom:0;"><span class="credit-pop"><div>🏖️ ${formatDuration(st.rawStandMinutes)}</div></span></span>` : ''}
+                        ${lessonW > 0 ? `<span class="credit-tip" style="position:absolute; left:${standW}%; width:${lessonW}%; top:0; bottom:0;"><span class="credit-pop"><div>📚 ${formatDuration(st.rawLessonMinutes)}</div></span></span>` : ''}
+                        ${doorW > 0 ? `<span class="credit-tip" style="position:absolute; left:${standW + lessonW}%; width:${doorW}%; top:0; bottom:0;"><span class="credit-pop"><div>🚪 ${formatDuration(st.doorMinutes)}</div></span></span>` : ''}
+                      </div>
+                    </div>`;
+              let trackHtml = proportionTrack;
+              if (trackerTimeline && shift) {
+                const S = timeToMinutes(shift.startTime);
+                const E = timeToMinutes(shift.endTime);
+                const span = Math.max(1, E - S);
+                // Clamp to shift, sort, and merge contiguous same-type blocks into runs.
+                const clamped = getGuardDaySegments(g.id, day, state.selectedWeek, blocks, filteredLessons, settings)
+                  .map(s => ({ start: Math.max(S, s.start), end: Math.min(E, s.end), type: s.type }))
+                  .filter(s => s.end > s.start)
+                  .sort((a, b) => a.start - b.start);
+                const merged = [];
+                clamped.forEach(s => {
+                  const last = merged[merged.length - 1];
+                  if (last && last.type === s.type && s.start <= last.end) last.end = Math.max(last.end, s.end);
+                  else merged.push({ ...s });
+                });
+                // Fill the remaining time with 'free' gaps so the whole shift is covered.
+                const pieces = [];
+                let cursor = S;
+                merged.forEach(s => {
+                  if (s.start > cursor) pieces.push({ start: cursor, end: s.start, type: 'free' });
+                  pieces.push(s);
+                  cursor = s.end;
+                });
+                if (cursor < E) pieces.push({ start: cursor, end: E, type: 'free' });
+
+                const colorOf = (t) => t === 'stand' ? '#3b82f6' : t === 'lesson' ? '#2dd4a8' : t === 'door' ? '#9a6a3a' : 'transparent';
+                const emojiOf = (t) => t === 'stand' ? '🏖️' : t === 'lesson' ? '📚' : '🚪';
+
+                // Colored bar (clipped to the rounded pill).
+                const coloredHtml = pieces.filter(p => p.type !== 'free').map(p => {
+                  const left = ((p.start - S) / span) * 100, width = ((p.end - p.start) / span) * 100;
+                  return `<div style="position:absolute; left:${left}%; width:${width}%; top:0; bottom:0; background:${colorOf(p.type)};"></div>`;
+                }).join('');
+
+                // Hover zones (not clipped) with styled tooltips for each block and gap.
+                const zonesHtml = pieces.map(p => {
+                  const left = ((p.start - S) / span) * 100, width = ((p.end - p.start) / span) * 100;
+                  const dur = formatDuration(p.end - p.start);
+                  const tf = `${formatTime(minutesToTime(p.start))} – ${formatTime(minutesToTime(p.end))}`;
+                  const head = p.type === 'free' ? `Free ${dur}` : `${emojiOf(p.type)} ${dur}`;
+                  return `<span class="credit-tip" style="position:absolute; left:${left}%; width:${width}%; top:0; bottom:0;"><span class="credit-pop"><div>${head}</div><div style="color:var(--text-tertiary);">${tf}</div></span></span>`;
+                }).join('');
+
+                trackHtml = `<div style="position:relative; flex:1; min-width:0; height:8px;">
+                    <div class="stand-time-track" style="position:absolute; inset:0;">${coloredHtml}</div>
+                    <div style="position:absolute; inset:0;">${zonesHtml}</div>
+                  </div>`;
+              }
+
               return `
                 <div class="stand-time-bar-container" id="tracker-bar-${g.id}">
                   <div class="stand-time-header">
@@ -8968,11 +9372,7 @@ function renderDailyTracker(state) {
                     ${shift ? `<span style="font-size:0.65rem; color:var(--text-tertiary); font-weight:500;">${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</span>` : ''}
                   </div>
                   <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="stand-time-track" style="display:flex; flex:1; min-width:0;">
-                      <div style="width:${standW}%; background:#3b82f6; flex-shrink:0;"></div>
-                      <div style="width:${lessonW}%; background:#2dd4a8; flex-shrink:0;"></div>
-                      <div style="width:${doorW}%; background:#9a6a3a; flex-shrink:0;"></div>
-                    </div>
+                    ${trackHtml}
                     <span class="credit-tip credit-tip-right" tabindex="0" style="flex-shrink:0; width:58px; justify-content:flex-end;">
                       <span class="percentage-label" style="color:${pctColor}">${pctDisplay}%</span>
                       <span class="credit-pop">
@@ -10221,9 +10621,10 @@ function renderLessonsTab(state) {
                         const cardStyle = cardColor
                           ? `background: linear-gradient(135deg, ${hexToRgba(cardColor, 0.35)} 0%, ${hexToRgba(cardColor, 0.15)} 100%) !important; border-left: 3px solid ${cardColor} !important; color: #ffffff !important;`
                           : '';
+                        const conflict = hasLessonConflict(lesson, state);
 
                         return `
-                          <div class="lesson-card ${crewClass}"
+                          <div class="lesson-card ${crewClass}${conflict ? ' has-conflict' : ''}"
                                draggable="true"
                                ondragstart="window.__onLessonDragStart(event, '${lesson.id}')"
                                ondragend="this.classList.remove('dragging')"
@@ -10235,6 +10636,7 @@ function renderLessonsTab(state) {
                                onmousemove="window.__moveLessonTip(event)"
                                onmouseleave="window.__hideLessonTip()"
                                style="position: absolute; top: ${top}%; height: ${height}%; left: ${left}%; width: ${width}%; padding: 4px 6px; border-radius: var(--radius-sm); border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 2px 8px rgba(0,0,0,0.25); cursor: pointer; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; z-index: 10; pointer-events: auto; ${cardStyle}">
+                            ${conflict ? `<span class="lesson-conflict-dot" title="Conflict — this lesson overlaps the guard's shift boundary, another lesson, or a rotation assignment"></span>` : ''}
                             <span class="lesson-card-name" style="font-weight: 700; font-size: var(--font-xs); line-height: 1.15; color: #ffffff; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;">${escapeHtml(guardName)}</span>
                           </div>
                         `;
@@ -10286,6 +10688,7 @@ window.__showLessonTip = (event, lessonId) => {
     <div class="lht-row">🕒 ${formatTime(lesson.startTime)} – ${formatTime(endTime)} <span class="lht-dim">(${parseInt(lesson.durationMinutes) || 0}m)</span></div>
     ${lesson.subject ? `<div class="lht-row">🏷️ ${escapeHtml(lesson.subject)}</div>` : ''}
     ${lesson.notes ? `<div class="lht-row">📝 ${escapeHtml(lesson.notes)}</div>` : ''}
+    ${(() => { const r = getLessonConflictReason(lesson, state); return r ? `<div class="lht-row" style="color:#f87171; font-weight:600;">⚠️ ${escapeHtml(r)}</div>` : ''; })()}
   `;
   // Set the color dot via property (never via innerHTML) to avoid CSS injection.
   const dot = tip.querySelector('.lht-dot');
@@ -10312,6 +10715,19 @@ window.__moveLessonTip = (event) => {
 window.__hideLessonTip = () => {
   const tip = document.getElementById('lesson-hover-tip');
   if (tip) tip.style.display = 'none';
+};
+
+window.__showSlotConflictTip = (event, el) => {
+  const reason = el && el.getAttribute('data-conflict');
+  if (!reason) return;
+  if (document.querySelector('.assignment-dropdown')) return;
+  const tip = ensureLessonTip();
+  tip.innerHTML = `
+    <div class="lht-head"><span class="lht-dot" style="background:#ef4444;"></span>Conflict</div>
+    <div class="lht-row" style="color:#f87171; font-weight:600;">⚠️ ${escapeHtml(reason)}</div>
+  `;
+  tip.style.display = 'block';
+  window.__moveLessonTip(event);
 };
 
 function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTime = null) {
@@ -11273,6 +11689,7 @@ function getTimeSinceLastStandOrLesson(guardId, currentBlock, state) {
 
 window.__toggleAssignmentDropdown = (e, blockId, position) => {
   e.stopPropagation();
+  window.__hideLessonTip();
   // Close any existing dropdowns
   document.querySelectorAll('.assignment-dropdown').forEach(d => d.remove());
 
@@ -12810,6 +13227,15 @@ function attachGlobalEvents(state) {
   }
 
   // Copy Week button
+  const masterBtn = document.getElementById('master-schedule-btn');
+  if (masterBtn) masterBtn.addEventListener('click', () => window.__toggleMasterSchedule());
+  const copyMasterToWeekBtn = document.getElementById('copy-master-to-week-btn');
+  if (copyMasterToWeekBtn) copyMasterToWeekBtn.addEventListener('click', () => window.__copyMasterToWeek());
+  const overwriteWeekBtn = document.getElementById('overwrite-week-btn');
+  if (overwriteWeekBtn) overwriteWeekBtn.addEventListener('click', () => window.__overwriteWeekWithMaster());
+  const saveWeekToMasterBtn = document.getElementById('save-week-to-master-btn');
+  if (saveWeekToMasterBtn) saveWeekToMasterBtn.addEventListener('click', () => window.__saveWeekToMaster());
+
   const copyWeekBtn = document.getElementById('copy-week-btn');
   if (copyWeekBtn) {
     copyWeekBtn.addEventListener('click', () => {
