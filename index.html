@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="Lifeguard Rotation Scheduler — Manage lifeguard schedules, generate fair rotation assignments, and track stand time equity across your aquatic facility." />
   <title>Lifeguard Rotation Scheduler</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪀</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏊</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -3112,15 +3112,16 @@ body::before {
   border-color: var(--primary-500);
   color: #fff;
 }
-.notes-fontsize-select {
+.notes-fontsize-input {
   height: 30px;
+  width: 52px;
   padding: 0 6px;
   border: 1px solid var(--border-default);
   border-radius: var(--radius-sm);
   background: var(--bg-secondary);
   color: var(--text-primary);
   font-size: 0.8rem;
-  cursor: pointer;
+  text-align: center;
 }
 .notes-color-input {
   width: 34px;
@@ -3131,18 +3132,58 @@ body::before {
   background: var(--bg-secondary);
   cursor: pointer;
 }
+/* Horizontal scroll if the viewport is narrower than the PDF page width. */
+.notes-editor-scroll {
+  overflow-x: auto;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+/* The editor + guides form a fixed-width "page" mirroring the PDF's usable
+   width (letter landscape, 776pt = 776px), uniformly scaled up for on-screen
+   readability. Scaling the whole page (via transform) keeps every proportion —
+   base text, inline sizes, wrapping, page-break positions — representative of
+   the PDF. --notes-zoom must match NOTES_ZOOM in attachScheduleNotesEvents. */
+.notes-editor-scroll { --notes-zoom: 1.6; }
+.notes-editor-frame {
+  position: relative;
+  width: calc(776px * var(--notes-zoom));
+  max-width: 100%;
+  margin: 0 auto;
+}
+.notes-editor-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 776px;
+  transform: scale(var(--notes-zoom));
+  transform-origin: top left;
+}
 .notes-editor {
-  min-height: 120px;
-  max-height: 360px;
-  overflow-y: auto;
-  padding: 12px 14px;
+  /* Match the PDF notes container exactly: same width, padding, font size and
+     family, so on-screen wrapping and sizing equal the exported result. */
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 200px;
+  padding: 4px 10px 8px;
   border: 1px solid var(--border-default);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: #ffffff;
   color: #1e293b;
-  font-size: 0.95rem;
+  font-family: Inter, Arial, sans-serif;
+  font-size: 10.5px;
   line-height: 1.5;
   outline: none;
+  overflow-wrap: break-word;
+}
+.notes-page-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.notes-page-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px dashed #cbd5e1;
 }
 .notes-editor:empty::before { color: #94a3b8; }
 .notes-editor:focus {
@@ -3288,7 +3329,7 @@ body::before {
   font-weight: 600;
 }
 
-
+/* ─── Lesson conflict indicator (low-profile, works on tiny blocks) ─── */
 .lesson-card.has-conflict {
   outline: 2px solid #ef4444;
   outline-offset: -2px;
@@ -3307,6 +3348,7 @@ body::before {
   pointer-events: none;
 }
 
+/* ─── Rotation assignment conflict indicator ─── */
 .assignment-slot.has-conflict {
   outline: 2px solid #ef4444;
   outline-offset: -2px;
@@ -3325,6 +3367,7 @@ body::before {
   pointer-events: none;
 }
 
+/* ─── Master Schedule mode (visually distinct reference template) ─── */
 .master-banner {
   background: linear-gradient(90deg, rgba(167,139,250,0.22), rgba(167,139,250,0.08));
   color: #c4b5fd;
@@ -3343,6 +3386,7 @@ body::before {
   background: rgba(124, 58, 237, 0.16);
 }
 
+/* ─── Schedule mode segmented toggle (Weekly / Master) ─── */
 .schedule-mode-toggle {
   display: inline-flex;
   gap: 2px;
@@ -3367,6 +3411,7 @@ body::before {
 .schedule-mode-btn.active { background: var(--primary-600); color: #fff; }
 .schedule-mode-btn.master.active { background: #7c3aed; }
 
+/* ─── Save-to-Reference dropdown menu ─── */
 .ref-save-menu {
   min-width: 200px;
   max-height: 260px;
@@ -3400,6 +3445,24 @@ body::before {
   margin-top: 4px;
   font-weight: 600;
 }
+
+
+.tracker-name { cursor: pointer; border-radius: 4px; padding: 0 2px; transition: background 0.12s, color 0.12s; }
+.tracker-name:hover { background: var(--bg-hover); color: var(--primary-300); }
+.shadow-badge { display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; line-height: 1; color: var(--primary-200); background: rgba(124, 58, 237, 0.16); border: 1px solid rgba(124, 58, 237, 0.35); border-radius: 999px; padding: 3px 6px; cursor: pointer; flex-shrink: 0; }
+.shadow-badge:hover { background: rgba(124, 58, 237, 0.28); }
+.shadow-menu .shadow-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.shadow-menu .shadow-item.selected { color: var(--primary-200); font-weight: 600; }
+.shadow-menu .shadow-item-time { font-size: 0.68rem; color: var(--text-tertiary); white-space: nowrap; }
+
+.ash-add-btn { display: inline-flex; align-items: center; gap: 2px; font-size: 0.68rem; font-weight: 700; color: var(--primary-200); background: rgba(124, 58, 237, 0.16); border: 1px solid rgba(124, 58, 237, 0.4); border-radius: 999px; padding: 2px 8px; cursor: pointer; white-space: nowrap; }
+.ash-add-btn:hover { background: rgba(124, 58, 237, 0.32); }
+.assignment-shadow-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border-subtle); }
+.assignment-shadow-header .ash-back { cursor: pointer; color: var(--text-tertiary); font-size: 0.75rem; }
+.assignment-shadow-header .ash-back:hover { color: var(--text-primary); }
+.assignment-shadow-header .ash-title { font-size: 0.72rem; font-weight: 600; color: var(--primary-200); }
+.assignment-option.shadow-current { display: flex; align-items: center; justify-content: space-between; color: var(--primary-200); }
+.assignment-option.shadow-current .reason-label { color: var(--status-red); }
 </style>
 </head>
 <body>
@@ -3513,6 +3576,10 @@ const defaultState = {
   lessons: [],        // lesson entries
   scheduleNotes: '',  // HTML string of rich-text notes shown below the schedule & appended to the exported PDF
   dayNotes: {},       // per-day notes keyed by `${day}-${week}`, shown under the day in the exported PDF
+  shadows: {},        // per-day shadow pairings keyed by `${day}-${week}` → { [shadowGuardId]: mentorGuardId }
+  blockShadows: {},   // per-block shadow pairings keyed by `${blockId}-${pos}-${week}` → [shadowGuardId, …]
+  // Reference/template schedules. Each stores its shifts under its `key` (a
+  // sentinel "week" that starts with "__"), so all normal shift logic works.
   referenceSchedules: [{ key: '__master__', name: 'Master' }],
   settings: { ...defaultSettings },
   selectedDay: 'Monday',
@@ -3757,7 +3824,9 @@ function historySnapshot() {
     rotationBlocks: JSON.parse(JSON.stringify(state.rotationBlocks)),
     lessons: JSON.parse(JSON.stringify(state.lessons || [])),
     shifts: JSON.parse(JSON.stringify(state.shifts || {})),
-    referenceSchedules: JSON.parse(JSON.stringify(state.referenceSchedules || []))
+    referenceSchedules: JSON.parse(JSON.stringify(state.referenceSchedules || [])),
+    shadows: JSON.parse(JSON.stringify(state.shadows || {})),
+    blockShadows: JSON.parse(JSON.stringify(state.blockShadows || {}))
   };
 }
 
@@ -4136,10 +4205,18 @@ const store = {
     pushUndo();
     const w = week || state.selectedWeek;
     const key = `${blockId}-${position}-${w}`;
+    // A guard can't shadow themselves: if the incoming guard is currently a
+    // shadow on this slot, drop them from the shadow list.
+    const newBlockShadows = { ...(state.blockShadows || {}) };
+    if (Array.isArray(newBlockShadows[key])) {
+      const kept = newBlockShadows[key].filter(id => String(id) !== String(guardId));
+      if (kept.length) newBlockShadows[key] = kept; else delete newBlockShadows[key];
+    }
     state = {
       ...state,
       blockAssignments: { ...state.blockAssignments, [key]: guardId },
-      manualAssignments: { ...state.manualAssignments, [key]: true }
+      manualAssignments: { ...state.manualAssignments, [key]: true },
+      blockShadows: newBlockShadows
     };
     notify();
   },
@@ -4154,7 +4231,11 @@ const store = {
     const newManual = { ...state.manualAssignments || {} };
     delete newManual[key];
     delete newManual[`${blockId}-${position}`]; // clean up legacy
-    state = { ...state, blockAssignments: newAssignments, manualAssignments: newManual };
+    // Clearing the slot also removes any shadows attached to it.
+    const newBlockShadows = { ...(state.blockShadows || {}) };
+    delete newBlockShadows[key];
+    delete newBlockShadows[`${blockId}-${position}`];
+    state = { ...state, blockAssignments: newAssignments, manualAssignments: newManual, blockShadows: newBlockShadows };
     notify();
   },
 
@@ -4163,6 +4244,7 @@ const store = {
     pushUndo();
     const newAssignments = { ...state.blockAssignments };
     const newManual = { ...state.manualAssignments || {} };
+    const newBlockShadows = { ...(state.blockShadows || {}) };
     for (const k of Object.keys(newAssignments)) {
       const bId = extractBlockIdFromAssignmentKey(k);
       if (bId === blockId) {
@@ -4173,7 +4255,11 @@ const store = {
         }
       }
     }
-    state = { ...state, blockAssignments: newAssignments, manualAssignments: newManual };
+    // Drop shadows tied to any of this block's slots too.
+    for (const k of Object.keys(newBlockShadows)) {
+      if (extractBlockIdFromAssignmentKey(k) === blockId) delete newBlockShadows[k];
+    }
+    state = { ...state, blockAssignments: newAssignments, manualAssignments: newManual, blockShadows: newBlockShadows };
     notify();
   },
 
@@ -4264,6 +4350,8 @@ const store = {
       lessons: previous.lessons || state.lessons || [],
       shifts: previous.shifts || state.shifts || {},
       referenceSchedules: previous.referenceSchedules || state.referenceSchedules || [],
+      shadows: previous.shadows || state.shadows || {},
+      blockShadows: previous.blockShadows || state.blockShadows || {},
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...(state.redoStack || []), current].slice(-10)
     };
@@ -4283,6 +4371,8 @@ const store = {
       lessons: next.lessons || state.lessons || [],
       shifts: next.shifts || state.shifts || {},
       referenceSchedules: next.referenceSchedules || state.referenceSchedules || [],
+      shadows: next.shadows || state.shadows || {},
+      blockShadows: next.blockShadows || state.blockShadows || {},
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, current].slice(-10)
     };
@@ -4473,7 +4563,9 @@ const store = {
       manualMode,
       scheduleNotes,
       dayNotes,
-      referenceSchedules
+      referenceSchedules,
+      shadows,
+      blockShadows
     } = state;
     // Canonicalize via normalizeSyncPayload (sorted keys + normalized settings)
     // so the serialized form is deterministic across devices and app versions.
@@ -4489,7 +4581,9 @@ const store = {
       manualMode,
       scheduleNotes,
       dayNotes,
-      referenceSchedules
+      referenceSchedules,
+      shadows,
+      blockShadows
     }));
   },
 
@@ -4888,6 +4982,8 @@ const store = {
     return true;
   },
 
+  // Copy every guard's shifts from one week key to another (used for the
+  // Master Schedule ↔ real week). Overwrites matching guard/day cells.
   copyShiftsBetweenWeeks(sourceWeek, targetWeek) {
     if (!sourceWeek || !targetWeek || sourceWeek === targetWeek) return 0;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -4910,7 +5006,69 @@ const store = {
     return count;
   },
 
-getReferenceSchedules() {
+  // ─── Shadowing (trainee follows a mentor for a day) ───
+  // Stored per day+week as { [shadowGuardId]: mentorGuardId }. A shadow is
+  // shown alongside their mentor in every rotation slot the mentor holds that
+  // falls within the shadow's own shift. Display only — assignments unchanged.
+  getShadows(day, week) {
+    const w = week || state.selectedWeek;
+    return state.shadows?.[`${day}-${w}`] || {};
+  },
+
+  setShadow(shadowGuardId, mentorGuardId, day, week) {
+    const w = week || state.selectedWeek;
+    const dayKey = `${day}-${w}`;
+    pushUndo();
+    const newShadows = { ...(state.shadows || {}) };
+    const map = { ...(newShadows[dayKey] || {}) };
+    if (!mentorGuardId || String(mentorGuardId) === String(shadowGuardId)) {
+      delete map[shadowGuardId];
+    } else {
+      map[shadowGuardId] = mentorGuardId;
+    }
+    if (Object.keys(map).length === 0) delete newShadows[dayKey];
+    else newShadows[dayKey] = map;
+    state = { ...state, shadows: newShadows };
+    notify();
+  },
+
+  clearShadow(shadowGuardId, day, week) {
+    this.setShadow(shadowGuardId, null, day, week);
+  },
+
+  // Per-block manual shadows: a guard shadows whoever is assigned at a specific
+  // block+position. Stored as an array so a slot can carry more than one shadow.
+  getBlockShadows(blockId, position, week) {
+    const w = week || state.selectedWeek;
+    return state.blockShadows?.[`${blockId}-${position}-${w}`] || [];
+  },
+
+  addBlockShadow(blockId, position, guardId, week) {
+    const w = week || state.selectedWeek;
+    const key = `${blockId}-${position}-${w}`;
+    const existing = state.blockShadows?.[key] || [];
+    if (existing.includes(guardId)) return;
+    pushUndo();
+    state = { ...state, blockShadows: { ...(state.blockShadows || {}), [key]: [...existing, guardId] } };
+    notify();
+  },
+
+  removeBlockShadow(blockId, position, guardId, week) {
+    const w = week || state.selectedWeek;
+    const key = `${blockId}-${position}-${w}`;
+    const existing = state.blockShadows?.[key] || [];
+    if (!existing.includes(guardId)) return;
+    pushUndo();
+    const next = existing.filter(id => String(id) !== String(guardId));
+    const newBlockShadows = { ...(state.blockShadows || {}) };
+    if (next.length) newBlockShadows[key] = next;
+    else delete newBlockShadows[key];
+    state = { ...state, blockShadows: newBlockShadows };
+    notify();
+  },
+
+  // ─── Reference / template schedules ──────────────────
+  getReferenceSchedules() {
     return state.referenceSchedules || [];
   },
 
@@ -4949,6 +5107,8 @@ getReferenceSchedules() {
     notify();
   },
 
+  // Like copyShiftsBetweenWeeks, but first CLEARS every shift in the target
+  // week so the result is an exact replica of the source (not a merge).
   overwriteWeekFrom(sourceWeek, targetWeek) {
     if (!sourceWeek || !targetWeek || sourceWeek === targetWeek) return 0;
     const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -5258,12 +5418,67 @@ function rateLimitErrorFromResponse(response) {
   return err;
 }
 
+// Network timeout for every GitHub request. Without this, a hung/half-open
+// connection (common on flaky Wi‑Fi, sleeping laptops, captive portals) leaves
+// the awaited fetch pending forever — and because the sync engine holds
+// isSyncBusy across the await, ALL future syncs would silently wedge until a
+// full reinitialize. AbortController guarantees every request settles.
+const FETCH_TIMEOUT_MS = 20000;
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = FETCH_TIMEOUT_MS) {
+  // Prefer a caller-supplied signal if present; otherwise create our own.
+  const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    const response = await fetch(url, controller ? { ...options, signal: controller.signal } : options);
+    return response;
+  } catch (e) {
+    // Normalize an abort into a clear, typed, retryable network error.
+    if (e && (e.name === 'AbortError')) {
+      const err = new Error('GitHub request timed out. Check your connection.');
+      err.isNetworkError = true;
+      throw err;
+    }
+    // fetch() rejects with a TypeError on network failure (offline, DNS, CORS).
+    if (e instanceof TypeError) {
+      const err = new Error('Network error reaching GitHub. Check your connection.');
+      err.isNetworkError = true;
+      throw err;
+    }
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+// GET-only helper with a single retry. GETs are idempotent, so retrying once on
+// a transient network error or 5xx is safe and smooths over brief blips without
+// surfacing a scary error badge. Rate-limit and auth/404 errors are NOT retried.
+async function fetchWithRetry(url, options = {}) {
+  try {
+    const response = await fetchWithTimeout(url, options);
+    // Retry once on transient server errors.
+    if (response.status >= 500 && response.status < 600) {
+      await new Promise(r => setTimeout(r, 800));
+      return await fetchWithTimeout(url, options);
+    }
+    return response;
+  } catch (e) {
+    if (e && e.isNetworkError) {
+      // One retry after a short pause.
+      await new Promise(r => setTimeout(r, 800));
+      return await fetchWithTimeout(url, options);
+    }
+    throw e;
+  }
+}
+
 async function fetchGistAPI(token, gistId) {
   const headers = {
     'Authorization': `token ${token}`,
     'Accept': 'application/vnd.github.v3+json'
   };
-  const response = await fetch(`https://api.github.com/gists/${gistId}`, { headers });
+  const response = await fetchWithRetry(`https://api.github.com/gists/${gistId}`, { headers });
   if (!response.ok) {
     const rlErr = rateLimitErrorFromResponse(response);
     if (rlErr) throw rlErr;
@@ -5289,7 +5504,7 @@ async function createGistAPI(token, filename, content) {
       }
     }
   });
-  const response = await fetch(`https://api.github.com/gists`, {
+  const response = await fetchWithTimeout(`https://api.github.com/gists`, {
     method: 'POST',
     headers,
     body
@@ -5316,7 +5531,7 @@ async function updateGistAPI(token, gistId, filename, content) {
       }
     }
   });
-  const response = await fetch(`https://api.github.com/gists/${gistId}`, {
+  const response = await fetchWithTimeout(`https://api.github.com/gists/${gistId}`, {
     method: 'PATCH',
     headers,
     body
@@ -5348,7 +5563,7 @@ async function getGistFileContent(gist, filename) {
   const file = gist && gist.files ? gist.files[filename] : null;
   if (!file) return null;
   if (file.truncated && file.raw_url) {
-    const response = await fetch(file.raw_url);
+    const response = await fetchWithRetry(file.raw_url);
     if (!response.ok) {
       throw new Error(`Failed to fetch full gist content: HTTP ${response.status}`);
     }
@@ -5357,7 +5572,15 @@ async function getGistFileContent(gist, filename) {
   return file.content != null ? file.content : null;
 }
 
-async function isCloudVersionNewer(gist, cloudUpdatedAt) {
+// Analyze the cloud gist versus our local baseline. Returns:
+//   { isNewer, cloudNormalized, cloudRevision }
+// where cloudNormalized is the canonical (sorted-keys, settings-migrated) form
+// of the cloud payload — or null if it couldn't be read/parsed. Callers use
+// cloudNormalized to detect CONVERGENCE (cloud already equals current local
+// data), which lets them skip a pointless conflict prompt. cloudRevision lets
+// a caller adopt the higher revision when reconciling. Fetches content at most
+// once so callers don't pay for a second network round-trip.
+async function analyzeCloud(gist, cloudUpdatedAt) {
   const { gistFilename, syncRevision, lastGistSyncTime } = syncConfig;
   let content = null;
   try {
@@ -5365,7 +5588,11 @@ async function isCloudVersionNewer(gist, cloudUpdatedAt) {
   } catch (e) {
     console.warn('Failed to read cloud content for revision check:', e);
   }
+  let cloudNormalized = null;
+  let cloudRevision = 0;
   if (content) {
+    cloudNormalized = normalizeSyncPayload(content);
+    try { cloudRevision = JSON.parse(content)._syncRevision || 0; } catch (e) {}
     try {
       // CONTENT is the source of truth for "is the cloud newer than us?".
       // A device must NEVER treat its own just-pushed data as newer just
@@ -5374,27 +5601,23 @@ async function isCloudVersionNewer(gist, cloudUpdatedAt) {
       // even a read replica) is eventually consistent. So whenever we can
       // compare the cloud payload against our synced baseline, that decides it.
       if (lastSyncedJSON != null) {
-        const contentDiffers = normalizeSyncPayload(content) !== lastSyncedJSON;
+        const contentDiffers = cloudNormalized !== lastSyncedJSON;
         if (!contentDiffers) {
           // Canonically identical to what we already hold. NOT newer, full stop.
           // This is what breaks the "device pulls its own push" loop, even if
           // the revision counter or updated_at say otherwise.
-          return false;
+          return { isNewer: false, cloudNormalized, cloudRevision };
         }
         // The cloud genuinely differs from our baseline. Treat it as newer
         // UNLESS its revision counter is behind ours — that means we fetched a
         // stale/older read replica, and we must not pull it over newer data.
-        let cloudRevision = 0;
-        try { cloudRevision = JSON.parse(content)._syncRevision || 0; } catch (e) {}
         const localRevision = syncRevision || 0;
-        if (cloudRevision < localRevision) return false;
-        return true;
+        if (cloudRevision < localRevision) return { isNewer: false, cloudNormalized, cloudRevision };
+        return { isNewer: true, cloudNormalized, cloudRevision };
       }
       // No baseline yet (first connection) — fall back to the revision counter.
-      const cloudData = JSON.parse(content);
-      const cloudRevision = cloudData._syncRevision || 0;
       const localRevision = syncRevision || 0;
-      if (cloudRevision > localRevision) return true;
+      if (cloudRevision > localRevision) return { isNewer: true, cloudNormalized, cloudRevision };
     } catch (e) {
       console.warn('Failed to parse cloud content for revision check:', e);
     }
@@ -5405,8 +5628,27 @@ async function isCloudVersionNewer(gist, cloudUpdatedAt) {
   if (lastGistSyncTime) {
     const cloudTime = new Date(cloudUpdatedAt).getTime();
     const localTime = new Date(lastGistSyncTime).getTime();
-    return cloudTime > localTime;
+    return { isNewer: cloudTime > localTime, cloudNormalized, cloudRevision };
   }
+  return { isNewer: true, cloudNormalized, cloudRevision };
+}
+
+// Reconcile when the cloud payload is byte-identical (after normalization) to
+// our CURRENT local data: there is genuinely nothing to merge, so adopt it as
+// the synced baseline silently instead of prompting a spurious conflict. This
+// neutralizes the common phantom-conflict causes: a localStorage write that
+// failed to persist the baseline/revision, GitHub read-replica lag, and two
+// devices independently arriving at the same data. Returns true if it handled
+// (converged) the situation.
+function reconcileConverged(cloudNormalized, currentJSON, cloudUpdatedAt, cloudRevision) {
+  if (cloudNormalized == null || cloudNormalized !== currentJSON) return false;
+  lastSyncedJSON = currentJSON;
+  saveLastSyncedJSON(currentJSON);
+  syncConfig.lastGistSyncTime = cloudUpdatedAt;
+  syncConfig.lastSyncedAt = new Date().toISOString();
+  // Adopt the higher revision so subsequent checks stay stable on both sides.
+  syncConfig.syncRevision = Math.max(syncConfig.syncRevision || 0, cloudRevision || 0);
+  saveSyncConfig();
   return true;
 }
 
@@ -5641,7 +5883,7 @@ const syncManager = {
     // Build stamp — confirms which sync logic is actually loaded in the browser.
     // If you don't see this line in the DevTools console, you're running cached
     // code and need a hard refresh (Ctrl+Shift+R).
-    console.info('[lifeguard-sync] build 2026-07-15b — content-primary conflict detection');
+    console.info('[lifeguard-sync] build 2026-07-20 — convergence guard + fetch timeouts + lock-safe');
     this.reinitialize();
   },
 
@@ -5756,8 +5998,10 @@ const syncManager = {
       clearRateLimitBackoff();
       const cloudUpdatedAt = gist.updated_at;
 
-      // Determine if cloud is newer
-      const cloudIsNewer = await isCloudVersionNewer(gist, cloudUpdatedAt);
+      // Determine if cloud is newer (and capture its normalized content so we
+      // can detect convergence without a second fetch).
+      const { isNewer: cloudIsNewer, cloudNormalized, cloudRevision } =
+        await analyzeCloud(gist, cloudUpdatedAt);
 
       if (!cloudIsNewer) {
         // Cloud is older or same as local — no pull needed. Clear any prior
@@ -5791,8 +6035,10 @@ const syncManager = {
             (state.shifts && Object.keys(state.shifts).length > 0) ||
             (state.rotationBlocks && Object.keys(state.rotationBlocks).length > 0) ||
             (state.blockAssignments && Object.keys(state.blockAssignments).length > 0);
-          if (hasLocalData) {
-            // User has local work — show conflict prompt so they can choose
+          if (hasLocalData && !(cloudNormalized != null && cloudNormalized === currentJSON)) {
+            // User has local work that genuinely differs from the cloud — show
+            // the conflict prompt so they can choose. (If the cloud already
+            // equals our local data, fall through to reconcile silently below.)
             syncStatus = 'conflict';
             conflictCloudTime = cloudUpdatedAt;
             isSyncLoading = true;
@@ -5803,6 +6049,12 @@ const syncManager = {
                 window.__showConflictModal(cloudUpdatedAt, lastLocalEditTime, syncConfig.lastGistSyncTime);
               }
             }
+          } else if (hasLocalData) {
+            // First connection, but the cloud is byte-identical to our local
+            // data — nothing to merge. Adopt it as the baseline silently.
+            reconcileConverged(cloudNormalized, currentJSON, cloudUpdatedAt, cloudRevision);
+            syncStatus = 'idle';
+            notifyBadgeOnly();
           } else {
             // No local data — safe to auto-pull
             if (typeof showToast === 'function') {
@@ -5834,6 +6086,16 @@ const syncManager = {
             // edit that made it unsafe to pull in the first place.
             notifyBadgeOnly();
           }
+        } else if (cloudNormalized != null && cloudNormalized === currentJSON) {
+          // Both sides "changed" relative to the old baseline, but they landed
+          // on IDENTICAL data — there is nothing to reconcile. Silently adopt
+          // it as the synced baseline instead of prompting a phantom conflict.
+          reconcileConverged(cloudNormalized, currentJSON, cloudUpdatedAt, cloudRevision);
+          if (syncStatus === 'error' || syncStatus === 'available' || syncStatus === 'conflict') {
+            syncStatus = 'idle';
+          }
+          remoteChangesPendingSince = null;
+          notifyBadgeOnly();
         } else {
           // Both sides changed — flag a conflict (only if not already showing).
           if (syncStatus !== 'conflict') {
@@ -5866,8 +6128,13 @@ const syncManager = {
       isSyncLoading = true;
       notify();
       isSyncLoading = false;
+    } finally {
+      // Guarantee the concurrency lock is released on EVERY exit path — even an
+      // unexpected throw — so a single failure can never permanently wedge all
+      // future syncs. (Branches that hand off to pull() release it earlier and
+      // re-setting to false here is a harmless no-op.)
+      isSyncBusy = false;
     }
-    isSyncBusy = false;
   },
 
   async pull(fetchedGist = null) {
@@ -5914,32 +6181,31 @@ const syncManager = {
       syncStatus = 'error';
       syncLastError = e.message;
       if (typeof showToast === 'function') showToast(`Pull failed: ${e.message}`, 'error');
+    } finally {
+      try {
+        // Capture the baseline BEFORE the final UI notify so that getStatus()
+        // sees the correct baseline during render and shows 'synced' instead of
+        // 'dirty'. Safe because importData() already called notify() (running
+        // saveState() and all listeners synchronously), so state is settled.
+        if (syncStatus === 'idle') {
+          lastSyncedJSON = store.exportSyncData();
+          saveLastSyncedJSON(lastSyncedJSON);
+        }
+        // Final UI update — isSyncLoading stays true to block handleStoreUpdate
+        notify();
+        // Cancel any debounce timer set before the pull started
+        if (syncDebounceTimer) {
+          clearTimeout(syncDebounceTimer);
+          syncDebounceTimer = null;
+        }
+        // Record pull time for cooldown
+        lastPullTime = Date.now();
+      } finally {
+        // Release both guards no matter what happened above.
+        isSyncLoading = false;
+        isSyncBusy = false;
+      }
     }
-
-    // Capture the baseline BEFORE the final UI notify so that getStatus()
-    // sees the correct baseline during render and shows 'synced' instead of 'dirty'.
-    // This is safe because importData() already called notify() (which runs saveState()
-    // and all listeners synchronously), so the state is fully settled by now.
-    if (syncStatus === 'idle') {
-      lastSyncedJSON = store.exportSyncData();
-      saveLastSyncedJSON(lastSyncedJSON);
-    }
-
-    // Final UI update — isSyncLoading stays true to block handleStoreUpdate
-    notify();
-
-    // Cancel any debounce timer that might have been set before the pull started
-    if (syncDebounceTimer) {
-      clearTimeout(syncDebounceTimer);
-      syncDebounceTimer = null;
-    }
-
-    // Record pull time for cooldown
-    lastPullTime = Date.now();
-
-    // Release both guards
-    isSyncLoading = false;
-    isSyncBusy = false;
   },
 
   async push(force = false) {
@@ -5992,11 +6258,13 @@ const syncManager = {
       syncStatus = 'error';
       syncLastError = e.message;
       if (typeof showToast === 'function') showToast(`Push failed: ${e.message}`, 'error');
+    } finally {
+      // Final UI update, then release both guards on every exit path.
+      try { notify(); } finally {
+        isSyncLoading = false;
+        isSyncBusy = false;
+      }
     }
-    // Final UI update — isSyncLoading stays true to block handleStoreUpdate
-    notify();
-    isSyncLoading = false;
-    isSyncBusy = false;
   },
 
   async autoPush() {
@@ -6025,8 +6293,19 @@ const syncManager = {
       clearRateLimitBackoff();
       const cloudUpdatedAt = gist.updated_at;
 
-      const cloudIsNewer = await isCloudVersionNewer(gist, cloudUpdatedAt);
+      const { isNewer: cloudIsNewer, cloudNormalized, cloudRevision } =
+        await analyzeCloud(gist, cloudUpdatedAt);
       if (cloudIsNewer) {
+        // Convergence guard: if the cloud already holds exactly our current
+        // data (normalized), there's nothing to conflict over — adopt it as the
+        // baseline and skip both the conflict prompt AND the redundant push.
+        if (cloudNormalized != null && cloudNormalized === currentJSON) {
+          reconcileConverged(cloudNormalized, currentJSON, cloudUpdatedAt, cloudRevision);
+          syncStatus = 'idle';
+          isSyncBusy = false;
+          notifyBadgeOnly();
+          return;
+        }
         isSyncBusy = false;
         syncStatus = 'conflict';
         conflictCloudTime = cloudUpdatedAt;
@@ -6569,44 +6848,70 @@ function getPositionLabel(position) {
  *   percentage: number
  * }}
  */
-function calcGuardStandTime(guardId, day, blockAssignments, blocks, shifts, settings, lessons, week) {
+function calcGuardStandTime(guardId, day, blockAssignments, blocks, shifts, settings, lessons, week, shadows, blockShadows) {
   const doorCreditMultiplier = settings?.doorCreditMultiplier ?? (settings?.doorCreditPercent !== undefined ? settings.doorCreditPercent / 100 : 0.5);
   const lessonMultiplier = settings?.lessonMultiplier ?? 0.75;
   const standCount = settings?.standCount ?? 2;
 
+  // Shift for this guard (needed up front for shadow-follow coverage).
+  const shiftKeyWithWeek = week ? `${guardId}-${day}-${week}` : null;
+  const shiftKeyLegacy = `${guardId}-${day}`;
+  const guardShift = (shifts && shiftKeyWithWeek && shifts[shiftKeyWithWeek]) || (shifts && shifts[shiftKeyLegacy]) || null;
+
+  // If this guard is shadowing a mentor today, they follow the mentor's
+  // stand/door positions during blocks that fall within their own shift.
+  const mentorId = (shadows && shadows[`${day}-${week}`] && shadows[`${day}-${week}`][guardId]) || null;
+  const shiftStart = guardShift ? timeToMinutes(guardShift.startTime) : null;
+  const shiftEnd = guardShift ? timeToMinutes(guardShift.endTime) : null;
+
   let rawStandMinutes = 0;
   let doorMinutes = 0;
 
-  // Check each block to see if this guard is assigned to any position
+  // Check each block. Count the guard's OWN assigned position; if they have
+  // none there and are shadowing, count the mentor's position instead (so a
+  // shadow's followed time is tracked, and an own+followed overlap still shows
+  // as a double-booking via the conflict logic rather than inflating time here).
   for (const block of blocks) {
     const blockDuration = getTimeDuration(block.startTime, block.endTime);
     if (blockDuration <= 0) continue;
 
-    // Check all possible positions for this block
     const blockStands = block.guardCountOverride ?? standCount;
     const positions = getPositions(blockStands, settings?.excludeDoor);
-    const allPositions = [...positions];
-
-    for (const pos of allPositions) {
+    const posGuard = (pos) => {
       const keyWithWeek = week ? `${block.id}-${pos}-${week}` : null;
       const keyLegacy = `${block.id}-${pos}`;
-      const assignedGuardId = (blockAssignments && keyWithWeek && blockAssignments[keyWithWeek]) || (blockAssignments && blockAssignments[keyLegacy]) || null;
-      if (assignedGuardId === guardId) {
-        if (isStandPosition(pos)) {
-          rawStandMinutes += blockDuration;
-        } else if (isDoorPosition(pos)) {
-          doorMinutes += blockDuration;
+      return (blockAssignments && keyWithWeek && blockAssignments[keyWithWeek]) || (blockAssignments && blockAssignments[keyLegacy]) || null;
+    };
+
+    let countPos = null;
+    for (const pos of positions) {
+      if (posGuard(pos) === guardId) { countPos = pos; break; }
+    }
+    if (!countPos && mentorId && shiftStart !== null) {
+      const bS = timeToMinutes(block.startTime);
+      const bE = timeToMinutes(block.endTime);
+      if (shiftStart <= bS && shiftEnd >= bE) {
+        for (const pos of positions) {
+          if (posGuard(pos) === mentorId) { countPos = pos; break; }
         }
       }
+    }
+    // Per-block manual shadow: credit the slot this guard is attached to.
+    if (!countPos && blockShadows) {
+      for (const pos of positions) {
+        const arr = blockShadows[`${block.id}-${pos}-${week}`];
+        if (arr && arr.some(id => String(id) === String(guardId))) { countPos = pos; break; }
+      }
+    }
+    if (countPos) {
+      if (isStandPosition(countPos)) rawStandMinutes += blockDuration;
+      else if (isDoorPosition(countPos)) doorMinutes += blockDuration;
     }
   }
 
   // Lesson equivalent minutes
   let lessonEquivMinutes = 0;
   let rawLessonMinutes = 0;
-  const shiftKeyWithWeek = week ? `${guardId}-${day}-${week}` : null;
-  const shiftKeyLegacy = `${guardId}-${day}`;
-  const guardShift = (shifts && shiftKeyWithWeek && shifts[shiftKeyWithWeek]) || (shifts && shifts[shiftKeyLegacy]) || null;
   
   if (lessons && Array.isArray(lessons)) {
     const guardLessons = lessons.filter(l => l.guardId === guardId && l.day === day);
@@ -8047,6 +8352,61 @@ window.__toggleTrackerTimeline = () => {
   if (typeof render === 'function') render();
 };
 
+// Open a floating dropdown to pick who this guard should shadow. Lists everyone
+// else on shift that day with their shift times; selecting one binds the pair so
+// the shadow is shown alongside their mentor (Mentor/Shadow) in the rotation.
+window.__openShadowMenu = (event, shadowGuardId) => {
+  event.stopPropagation();
+  document.querySelectorAll('.shadow-menu').forEach(m => m.remove());
+
+  const state = store.getState();
+  const day = state.selectedDay;
+  const week = state.selectedWeek;
+  const shadowGuard = store.getGuardById(shadowGuardId);
+  if (!shadowGuard) return;
+  const shadowShift = store.getShift(shadowGuardId, day, week);
+  const shiftStr = (id) => {
+    const sh = store.getShift(id, day, week);
+    return sh ? `${formatTime(sh.startTime)} – ${formatTime(sh.endTime)}` : 'No shift';
+  };
+  const currentMentor = store.getShadows(day, week)[shadowGuardId] || null;
+
+  const others = store.getGuardsWorkingDay(day, null, week)
+    .filter(g => String(g.id) !== String(shadowGuardId));
+
+  const menu = document.createElement('div');
+  menu.className = 'ref-save-menu shadow-menu';
+  const rect = event.currentTarget.getBoundingClientRect();
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 320);
+  const left = Math.min(rect.left, window.innerWidth - 240);
+  menu.style.cssText = `position:fixed; top:${top}px; left:${left}px; z-index:1200;`;
+  menu.innerHTML =
+    `<div class="ref-save-title">${escapeHtml(shadowGuard.name)} · ${shadowShift ? escapeHtml(shiftStr(shadowGuardId)) : 'No shift'}<br><span style="font-weight:500; text-transform:none; letter-spacing:0;">shadows…</span></div>` +
+    (others.length ? others.map(g => `
+        <div class="ref-save-item shadow-item ${String(currentMentor) === String(g.id) ? 'selected' : ''}" data-mentor="${g.id}">
+          <span>${String(currentMentor) === String(g.id) ? '✓ ' : ''}${escapeHtml(g.name)}</span>
+          <span class="shadow-item-time">${escapeHtml(shiftStr(g.id))}</span>
+        </div>`).join('') : `<div class="ref-save-item" style="opacity:0.6; cursor:default;">No other guards on shift</div>`) +
+    (currentMentor ? `<div class="ref-save-item new" data-mentor="">✕ Stop shadowing</div>` : '');
+  document.body.appendChild(menu);
+
+  menu.querySelectorAll('.ref-save-item[data-mentor]').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.remove();
+      const mentorId = item.dataset.mentor || null;
+      store.setShadow(shadowGuardId, mentorId, day, week);
+      const mentor = mentorId ? store.getGuardById(mentorId) : null;
+      showToast(mentor ? `${shadowGuard.name} is now shadowing ${mentor.name}.` : `${shadowGuard.name} is no longer shadowing.`, 'success');
+      if (typeof render === 'function') render();
+    });
+  });
+
+  setTimeout(() => {
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
+};
+
 // Build time-positioned segments for one guard's day: rotation-block stand/door
 // assignments plus lessons, each as { start, end, type } in minutes. Used by the
 // daily tracker's Timeline View to show the flow (and gaps) of a guard's day.
@@ -8054,15 +8414,32 @@ function getGuardDaySegments(guardId, day, week, blocks, lessons, settings) {
   const segs = [];
   const excludeDoor = !!(settings && settings.excludeDoor);
   const sorted = [...blocks].sort((a, b) => timeToMinutes(a.startTime) - timeToMinutes(b.startTime));
+  // A shadow follows their mentor's positions during blocks within their shift.
+  const mentorId = store.getShadows(day, week)[guardId] || null;
+  const gShift = mentorId ? store.getShift(guardId, day, week) : null;
   sorted.forEach(b => {
     const stands = b.guardCountOverride ?? settings.standCount;
     if (!stands || stands < 1) return;
     const positions = getPositions(stands, excludeDoor);
+    let found = null;
     for (const pos of positions) {
-      if (store.getAssignment(b.id, pos, week) === guardId) {
-        segs.push({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime), type: isStandPosition(pos) ? 'stand' : 'door' });
-        break;
+      if (store.getAssignment(b.id, pos, week) === guardId) { found = pos; break; }
+    }
+    if (!found && mentorId && gShift) {
+      const bS = timeToMinutes(b.startTime), bE = timeToMinutes(b.endTime);
+      if (timeToMinutes(gShift.startTime) <= bS && timeToMinutes(gShift.endTime) >= bE) {
+        for (const pos of positions) {
+          if (store.getAssignment(b.id, pos, week) === mentorId) { found = pos; break; }
+        }
       }
+    }
+    if (!found) {
+      for (const pos of positions) {
+        if (store.getBlockShadows(b.id, pos, week).some(id => String(id) === String(guardId))) { found = pos; break; }
+      }
+    }
+    if (found) {
+      segs.push({ start: timeToMinutes(b.startTime), end: timeToMinutes(b.endTime), type: isStandPosition(found) ? 'stand' : 'door' });
     }
   });
   (lessons || []).forEach(l => {
@@ -8108,6 +8485,8 @@ function getFilteredLessonsForWeek(state) {
   return (state.lessons || []).filter(l => l.week === weekStr);
 }
 
+// Returns a short human-readable reason string if the lesson conflicts,
+// otherwise null. hasLessonConflict() is the boolean wrapper around this.
 function getLessonConflictReason(lesson, state) {
   const gId = lesson.guardId;
   const currentDay = lesson.day;
@@ -8115,12 +8494,14 @@ function getLessonConflictReason(lesson, state) {
   const startMin = timeToMinutes(lesson.startTime);
   const endMin = startMin + parseInt(lesson.durationMinutes);
 
+  // 1. Shift check
   const shift = store.getShift(gId, currentDay, w);
   if (!shift) return 'Guard is not scheduled to work this day';
   const shiftStart = shift.startTime ? timeToMinutes(shift.startTime) : 0;
   const shiftEnd = shift.endTime ? timeToMinutes(shift.endTime) : 0;
   if (startMin < shiftStart || endMin > shiftEnd) return "Lesson is outside the guard's shift hours";
 
+  // 2. Lesson overlap check
   const other = (state.lessons || []).find(l => {
     if (l.id === lesson.id) return false;
     if (String(l.guardId) !== String(gId) || l.day !== currentDay || l.week !== w) return false;
@@ -8130,6 +8511,7 @@ function getLessonConflictReason(lesson, state) {
   });
   if (other) return `Overlaps another lesson (${formatTime(other.startTime)} – ${formatTime(other.endTime)})`;
 
+  // 3. Rotation block assignment check
   const blocks = store.getBlocksForDay(currentDay, w);
   let hasAssignmentOverlap = false;
   blocks.forEach(block => {
@@ -8162,14 +8544,20 @@ function hasLessonConflict(lesson, state) {
 const initialWeek = store.getState().selectedWeek;
 let currentWeekStart = initialWeek ? new Date(initialWeek + 'T00:00:00') : getMonday(new Date());
 
+// Reference/template schedules are stored as shifts under a sentinel "week" key
+// that starts with "__" (e.g. "__master__", "__ref_<uuid>__"). Switching to one
+// just points selectedWeek at its key, so all normal shift editing works — it's
+// reference data only and never feeds real-week availability/conflict logic.
 function isReferenceWeek(w) {
   return typeof w === 'string' && w.startsWith('__');
 }
 function currentReference(state) {
   return (store.getReferenceSchedules() || []).find(r => r.key === state.selectedWeek) || null;
 }
-let savedRealWeek = null;
+let savedRealWeek = null; // the real week to restore when leaving a reference
 
+// Switch the schedule view. target === 'weekly' returns to the real week;
+// otherwise target is a reference key.
 window.__selectSchedule = (target) => {
   const cur = store.getState().selectedWeek;
   if (target === 'weekly') {
@@ -8207,6 +8595,7 @@ window.__deleteCurrentReference = () => {
   }
 };
 
+// Copy the CURRENT reference into the real week (merge over existing shifts).
 window.__copyReferenceToWeek = () => {
   const ref = currentReference(store.getState());
   const target = savedRealWeek || store.getState().selectedWeek;
@@ -8218,6 +8607,7 @@ window.__copyReferenceToWeek = () => {
   }
 };
 
+// Clear the real week, then replace it with the current reference.
 window.__overwriteWeekWithReference = () => {
   const ref = currentReference(store.getState());
   const target = savedRealWeek || store.getState().selectedWeek;
@@ -8229,6 +8619,8 @@ window.__overwriteWeekWithReference = () => {
   }
 };
 
+// From a real week: save it into a reference (existing name overwrites; a new
+// name creates a new reference).
 window.__saveWeekToReference = (event) => {
   const src = store.getState().selectedWeek;
   if (!src || isReferenceWeek(src)) return;
@@ -8320,9 +8712,12 @@ function render() {
   const windowScrollX = typeof window !== 'undefined' ? (window.scrollX || 0) : 0;
   const windowScrollY = typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
 
+  // On a reference schedule selectedWeek is a sentinel (not a date) — keep the
+  // last real week's date so date-based UI stays sane. References are
+  // schedule-only: navigating to another tab returns to the real week.
   if (isReferenceWeek(state.selectedWeek) && state.activeTab !== 'schedule') {
     store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
-    return;
+    return; // setSelectedWeek re-renders
   }
   if (state.selectedWeek && !isReferenceWeek(state.selectedWeek)) {
     currentWeekStart = new Date(state.selectedWeek + 'T00:00:00');
@@ -8756,9 +9151,8 @@ function renderScheduleNotes(state) {
           <span class="notes-toolbar-sep"></span>
           <label class="text-xs text-tertiary" style="display:flex; align-items:center; gap:6px;">
             Size
-            <select id="notes-fontsize" class="notes-fontsize-select">
-              ${fontSizes.map(f => `<option value="${f.v}"${f.v === '3' ? ' selected' : ''}>${f.label}</option>`).join('')}
-            </select>
+            <input type="number" id="notes-fontsize" class="notes-fontsize-input" min="8" max="120" step="1" value="16" title="Font size (px) — type a number" />
+            <span class="text-xs text-tertiary" style="opacity:0.7;">px</span>
           </label>
           <span class="notes-toolbar-sep"></span>
           <label class="text-xs text-tertiary" style="display:flex; align-items:center; gap:6px;">
@@ -8772,8 +9166,16 @@ function renderScheduleNotes(state) {
           <span class="notes-toolbar-sep"></span>
           <button type="button" class="notes-tool-btn" data-notes-cmd="removeFormat" title="Clear formatting">⌫</button>
         </div>
-        <div id="schedule-notes-editor" class="notes-editor" contenteditable="true"
-             data-placeholder="Type notes here. They'll appear at the bottom of the exported PDF…">${state.scheduleNotes || ''}</div>
+        <div class="notes-editor-scroll">
+          <div class="notes-editor-frame" id="notes-editor-frame">
+            <div class="notes-editor-wrap" id="notes-editor-wrap">
+              <div id="schedule-notes-editor" class="notes-editor" contenteditable="true"
+                   data-placeholder="Type notes here. They'll appear at the bottom of the exported PDF…">${state.scheduleNotes || ''}</div>
+              <div class="notes-page-guides" id="notes-page-guides" aria-hidden="true"></div>
+            </div>
+          </div>
+        </div>
+        <div class="text-xs text-tertiary" style="margin-top:6px; opacity:0.7;">This box mirrors the width and space below the schedule on the exported PDF. Dashed lines mark where notes continue onto the next page.</div>
       </div>
     </div>
   `;
@@ -8816,9 +9218,23 @@ function attachScheduleNotesEvents() {
     });
   };
 
+  // Reflect the font size at the caret/selection in the size input (unless the
+  // user is currently editing that input).
+  const sizeInput = document.getElementById('notes-fontsize');
+  const updateSizeDisplay = () => {
+    if (!sizeInput || document.activeElement === sizeInput) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !editor.contains(sel.anchorNode)) return;
+    let node = sel.anchorNode;
+    if (node && node.nodeType === 3) node = node.parentElement;
+    if (!node) return;
+    const px = parseFloat(window.getComputedStyle(node).fontSize);
+    if (!isNaN(px)) sizeInput.value = Math.round(px);
+  };
+
   // Track selection so toolbar controls (which steal focus) can restore it.
-  editor.addEventListener('keyup', () => { saveSelection(); updateActiveStates(); });
-  editor.addEventListener('mouseup', () => { saveSelection(); updateActiveStates(); });
+  editor.addEventListener('keyup', () => { saveSelection(); updateActiveStates(); updateSizeDisplay(); });
+  editor.addEventListener('mouseup', () => { saveSelection(); updateActiveStates(); updateSizeDisplay(); });
   editor.addEventListener('input', () => { saveSelection(); persist(); });
   editor.addEventListener('blur', saveSelection);
 
@@ -8835,16 +9251,26 @@ function attachScheduleNotesEvents() {
     });
   });
 
-  // Font size
-  const sizeSelect = document.getElementById('notes-fontsize');
-  if (sizeSelect) {
-    sizeSelect.addEventListener('mousedown', saveSelection);
-    sizeSelect.addEventListener('change', () => {
+  // Font size — arbitrary px value typed into the number input. execCommand's
+  // fontSize only supports 1–7, so wrap the selection with size 7 and then
+  // rewrite those wrappers to the exact pixel size.
+  if (sizeInput) {
+    sizeInput.addEventListener('mousedown', saveSelection);
+    const applySize = () => {
+      const px = parseInt(sizeInput.value, 10);
+      if (!px || px < 4) return;
       restoreSelection();
-      try { document.execCommand('fontSize', false, sizeSelect.value); } catch (e) {}
+      try {
+        document.execCommand('fontSize', false, '7');
+        editor.querySelectorAll('font[size="7"]').forEach(f => {
+          f.removeAttribute('size');
+          f.style.fontSize = px + 'px';
+        });
+      } catch (e) {}
       saveSelection();
       persist();
-    });
+    };
+    sizeInput.addEventListener('change', applySize);
   }
 
   // Text color
@@ -8860,6 +9286,62 @@ function attachScheduleNotesEvents() {
     colorInput.addEventListener('input', applyColor);
     colorInput.addEventListener('change', applyColor);
   }
+
+  // ── Page-break preview guides ──────────────────────────────
+  // The editor mirrors the PDF's usable page width; overlay dashed lines where
+  // the notes would spill onto the next page. Geometry matches exportSchedulePdf
+  // (letter landscape: 612pt tall, 8pt margins) and appendNotesToPdf's layout.
+  const PAGE_H = 612, PMARGIN = 8, START_Y = 32;
+  const guidesEl = document.getElementById('notes-page-guides');
+  const frameEl = document.getElementById('notes-editor-frame');
+  const wrapEl = document.getElementById('notes-editor-wrap');
+  const NOTES_ZOOM = 1.6; // must match --notes-zoom in CSS
+  const estimateNotesStartY = () => {
+    const s = store.getState();
+    const days = store.getDays();
+    const gs = s.guards.filter(g => days.some(d => store.getShift(g.id, d, s.selectedWeek)));
+    const hasDayNotes = days.some(d => (store.getDayNote(d, s.selectedWeek) || '').trim());
+    let y = START_Y + (hasDayNotes ? 34 : 26); // header row
+    gs.forEach(g => {
+      let lines = 2; // guard name + weekly hours
+      days.forEach(d => {
+        const sh = store.getShift(g.id, d, s.selectedWeek);
+        if (sh) { const l = 1 + (sh.breakMinutes > 0 ? 1 : 0) + (sh.lessonMinutes > 0 ? 1 : 0); if (l > lines) lines = l; }
+      });
+      y += lines * 9.5 + 12; // ~line height + cell padding
+    });
+    return y + 6; // gap before notes
+  };
+  const layoutPageGuides = () => {
+    if (!guidesEl) return;
+    const startY = estimateNotesStartY();
+    const overflow = startY > (PAGE_H - PMARGIN - 40);
+    const firstAvail = Math.max(40, overflow ? (PAGE_H - PMARGIN - 22) : (PAGE_H - PMARGIN - startY));
+    const nextAvail = PAGE_H - PMARGIN - 18;
+    editor.style.minHeight = firstAvail + 'px';
+    const contentH = editor.scrollHeight;
+    guidesEl.innerHTML = '';
+    let offset = firstAvail, count = 0;
+    while (offset < contentH - 2 && count < 20) {
+      const line = document.createElement('div');
+      line.className = 'notes-page-guide';
+      line.style.top = offset + 'px';
+      guidesEl.appendChild(line);
+      offset += nextAvail;
+      count++;
+    }
+    // Reserve the scaled page height in layout (transform alone doesn't reflow).
+    if (frameEl && wrapEl) frameEl.style.height = (wrapEl.offsetHeight * NOTES_ZOOM) + 'px';
+  };
+  const scheduleLayout = () => requestAnimationFrame(layoutPageGuides);
+  editor.addEventListener('input', scheduleLayout);
+  if (window.__notesGuideResize) window.removeEventListener('resize', window.__notesGuideResize);
+  window.__notesGuideResize = scheduleLayout;
+  window.addEventListener('resize', scheduleLayout);
+  if (window.__notesGuideMO) window.__notesGuideMO.disconnect();
+  window.__notesGuideMO = new MutationObserver(scheduleLayout);
+  window.__notesGuideMO.observe(editor, { childList: true, subtree: true, characterData: true, attributes: true });
+  setTimeout(layoutPageGuides, 60);
 }
 
 function renderWeeklyGrid(state) {
@@ -9289,16 +9771,105 @@ function renderBlockGrid(blocks, state) {
   `;
 }
 
+// Build the display name for an assigned guard, appending any shadows who
+// follow this mentor and whose own shift covers this block: "Mentor/Shadow".
+function guardSlotDisplayName(mentorGuardId, mentorName, block, day, week, pos) {
+  if (!mentorGuardId) return mentorName;
+  const bStart = timeToMinutes(block.startTime);
+  const bEnd = timeToMinutes(block.endTime);
+  const names = [];
+  const seen = new Set();
+  const push = (id) => {
+    if (seen.has(String(id))) return;
+    seen.add(String(id));
+    const g = store.getGuardById(id);
+    if (g) names.push(g.name);
+  };
+  // Day-long shadows following this mentor, shown only while the block falls
+  // within the shadow's own shift.
+  const shadows = store.getShadows(day, week) || {};
+  Object.keys(shadows).forEach(shadowId => {
+    if (String(shadows[shadowId]) !== String(mentorGuardId)) return;
+    const sh = store.getShift(shadowId, day, week);
+    if (!sh) return;
+    if (timeToMinutes(sh.startTime) <= bStart && timeToMinutes(sh.endTime) >= bEnd) push(shadowId);
+  });
+  // Per-block manual shadows attached to this exact slot (shown unconditionally).
+  if (pos != null) store.getBlockShadows(block.id, pos, week).forEach(push);
+  return names.length ? `${mentorName}/${names.join('/')}` : mentorName;
+}
+
+// The position a shadowing guard follows their mentor to in this block (within
+// the shadow's shift), or null. Used to treat a shadow as effectively occupying
+// their mentor's spot for conflict detection.
+function shadowFollowedPosition(guardId, block, state) {
+  const day = state.selectedDay, week = state.selectedWeek;
+  const positions = getDisplayPositions(block.guardCountOverride ?? state.settings.standCount, state.settings?.excludeDoor);
+  // Per-block manual shadow: bound to a specific slot in this block.
+  for (const p of positions) {
+    if (store.getBlockShadows(block.id, p, week).some(id => String(id) === String(guardId))) return p;
+  }
+  // Day-long shadow: follows the mentor's slot while within the shadow's shift.
+  const mentorId = store.getShadows(day, week)[guardId];
+  if (!mentorId) return null;
+  const sh = store.getShift(guardId, day, week);
+  if (!sh) return null;
+  const bS = timeToMinutes(block.startTime), bE = timeToMinutes(block.endTime);
+  if (!(timeToMinutes(sh.startTime) <= bS && timeToMinutes(sh.endTime) >= bE)) return null;
+  for (const p of positions) {
+    if (store.getAssignment(block.id, p, week) === mentorId) return p;
+  }
+  return null;
+}
+
+// If a guard assigned at mentorPos has a shadow following them here who is ALSO
+// independently assigned elsewhere in this block, return a conflict reason so
+// the mentor's slot (shown as "Mentor/Shadow") is flagged too. Otherwise null.
+function shadowDoubleBookReason(mentorId, block, mentorPos, state) {
+  const day = state.selectedDay, week = state.selectedWeek;
+  const bS = timeToMinutes(block.startTime), bE = timeToMinutes(block.endTime);
+  const positions = getDisplayPositions(block.guardCountOverride ?? state.settings.standCount, state.settings?.excludeDoor);
+  // Collect every shadow attached to this mentor at this slot: day-long
+  // followers (within their shift) plus per-block manual shadows on this slot.
+  const shadowIds = new Set();
+  const shadows = store.getShadows(day, week);
+  for (const sId of Object.keys(shadows)) {
+    if (String(shadows[sId]) !== String(mentorId)) continue;
+    const sh = store.getShift(sId, day, week);
+    if (!sh) continue;
+    if (timeToMinutes(sh.startTime) <= bS && timeToMinutes(sh.endTime) >= bE) shadowIds.add(String(sId));
+  }
+  store.getBlockShadows(block.id, mentorPos, week).forEach(id => shadowIds.add(String(id)));
+  for (const sId of shadowIds) {
+    for (const p of positions) {
+      if (p === mentorPos) continue;
+      if (String(store.getAssignment(block.id, p, week)) === sId) {
+        const s = store.getGuardById(sId);
+        return `${s?.name || 'Shadow'} is shadowing ${store.getGuardById(mentorId)?.name || 'here'} but is also assigned to ${getPositionLabel(p)} in this block`;
+      }
+    }
+  }
+  return null;
+}
+
 function renderBlockAssignments(block, standCount, state) {
   const positions = getDisplayPositions(standCount, state.settings?.excludeDoor);
   const slots = positions.map(pos => {
     const guardId = store.getAssignment(block.id, pos, state.selectedWeek);
     const guard = guardId ? store.getGuardById(guardId) : null;
     const posType = isStandPosition(pos) ? 'stand' : 'door';
+    // Flag an assigned guard who conflicts here (off shift, teaching within the
+    // 5-min buffer, or double-booked in this block).
     let conflictReason = null;
     if (guardId) {
       const chk = canAssignGuardToBlockPos(guardId, block, pos, state);
       if (!chk.valid) conflictReason = chk.reason;
+      // Also flag this slot if a shadow following the assigned guard here is
+      // double-booked (independently assigned elsewhere in this same block).
+      if (!conflictReason) {
+        const sdb = shadowDoubleBookReason(guardId, block, pos, state);
+        if (sdb) conflictReason = sdb;
+      }
     }
     const conflictAttrs = conflictReason
       ? ` data-conflict="${escapeHtml(conflictReason)}" onmouseenter="window.__showSlotConflictTip(event, this)" onmousemove="window.__moveLessonTip(event)" onmouseleave="window.__hideLessonTip()"`
@@ -9316,7 +9887,7 @@ function renderBlockAssignments(block, standCount, state) {
            ondragend="window.__onDragEnd(event)"${conflictAttrs}>
         ${conflictReason ? '<span class="slot-conflict-dot"></span>' : ''}
         <span class="position-label">${getPositionLabel(pos)}</span>
-        <span class="assigned-guard">${guard ? guard.name : '- empty -'}</span>
+        <span class="assigned-guard">${guard ? escapeHtml(guardSlotDisplayName(guard.id, guard.name, block, state.selectedDay, state.selectedWeek, pos)) : '- empty -'}</span>
       </div>
     `;
   });
@@ -9363,11 +9934,12 @@ function renderDailyTracker(state) {
   const blocks = store.getBlocksForDay(day);
   const settings = state.settings;
   const filteredLessons = getFilteredLessonsForWeek(state);
+  const dayShadows = store.getShadows(day, state.selectedWeek);
 
   // Compute each guard's stats once, then sort per the selected mode.
   const entries = guardsToday.map(g => ({
     g,
-    st: calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek),
+    st: calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows),
     shift: store.getShift(g.id, day, state.selectedWeek),
   }));
 
@@ -9519,8 +10091,9 @@ function renderDailyTracker(state) {
                 <div class="stand-time-bar-container" id="tracker-bar-${g.id}">
                   <div class="stand-time-header">
                     <div class="guard-label" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; min-width:0;">
-                      <span>${escapeHtml(g.name)}</span>
+                      <span class="tracker-name" onclick="window.__openShadowMenu(event, '${g.id}')" title="Click to have ${escapeHtml(g.name)} shadow another guard">${escapeHtml(g.name)}</span>
                       ${st.shiftDurationMinutes > 0 ? `<span class="shift-duration">🕒 ${formatDuration(st.shiftDurationMinutes)}</span>` : ''}
+                      ${dayShadows[g.id] ? `<span class="shadow-badge credit-tip" onclick="window.__openShadowMenu(event, '${g.id}')" tabindex="0">👥<span class="credit-pop">Shadowing ${escapeHtml(store.getGuardById(dayShadows[g.id])?.name || '?')}</span></span>` : ''}
                     </div>
                     ${shift ? `<span style="font-size:0.65rem; color:var(--text-tertiary); font-weight:500;">${formatTime(shift.startTime)} – ${formatTime(shift.endTime)}</span>` : ''}
                   </div>
@@ -9568,12 +10141,14 @@ function renderWeeklyTrackerTable(state) {
     `;
   }
 
+  // Each guard's week-average %, and the group's average of those — so the
+  // Week Avg column can be colored the same way the daily/day cells are.
   const guardWeekAvg = (g) => {
     let total = 0, worked = 0;
     days.forEach(d => {
       if (!store.getShift(g.id, d, state.selectedWeek)) return;
       const blocks = store.getBlocksForDay(d);
-      const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
+      const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows);
       total += (isNaN(st.percentage) ? 0 : st.percentage);
       worked++;
     });
@@ -9606,7 +10181,7 @@ function renderWeeklyTrackerTable(state) {
             if (!shift) return '<td><span class="percentage-cell none">—</span></td>';
 
             const blocks = store.getBlocksForDay(d);
-            const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
+            const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows);
 
             // Compare against the same group as the daily tracker: everyone
             // working that day within the current crew filter (all crews on "Both").
@@ -9614,7 +10189,7 @@ function renderWeeklyTrackerTable(state) {
             let dayAvg = 0;
             if (dayGuards.length > 0) {
               dayAvg = dayGuards.reduce((sum, dg) => {
-                const dst = calcGuardStandTime(dg.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
+                const dst = calcGuardStandTime(dg.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows);
                 return sum + dst.percentage;
               }, 0) / dayGuards.length;
             }
@@ -9693,7 +10268,7 @@ function renderWeeklyRawTrackerTable(state) {
 
             hasAnyShift = true;
             const blocks = store.getBlocksForDay(d);
-            const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
+            const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows);
 
             totalStand += st.rawStandMinutes || 0;
             totalDoor += st.doorMinutes || 0;
@@ -10881,9 +11456,13 @@ window.__hideLessonTip = () => {
   if (tip) tip.style.display = 'none';
 };
 
+// Styled hover tip describing a rotation assignment conflict (reuses the
+// lesson tip element + move/hide handlers).
 window.__showSlotConflictTip = (event, el) => {
   const reason = el && el.getAttribute('data-conflict');
   if (!reason) return;
+  // Don't show while an assignment dropdown is open (hovering it shouldn't
+  // trigger the tip — only hovering the block itself should).
   if (document.querySelector('.assignment-dropdown')) return;
   const tip = ensureLessonTip();
   tip.innerHTML = `
@@ -11825,6 +12404,11 @@ function getTimeSinceLastStandOrLesson(guardId, currentBlock, state) {
           }
         }
       });
+      // Shadowing a mentor on a stand counts as stand time for the shadow too.
+      const fp = shadowFollowedPosition(guardId, b, state);
+      if (fp && isStandPosition(fp) && bEnd > mostRecentEnd) {
+        mostRecentEnd = bEnd;
+      }
     }
   });
   
@@ -11853,6 +12437,18 @@ function getTimeSinceLastStandOrLesson(guardId, currentBlock, state) {
 
 window.__toggleAssignmentDropdown = (e, blockId, position) => {
   e.stopPropagation();
+  openAssignmentDropdown(e.currentTarget, blockId, position, false);
+};
+
+// Re-open the same slot's dropdown in per-block shadow-select mode.
+window.__enterBlockShadowMode = (event, blockId, position) => {
+  event.stopPropagation();
+  const anchor = document.getElementById(`slot-${blockId}-${position}`);
+  if (anchor) openAssignmentDropdown(anchor, blockId, position, true);
+};
+
+function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
+  // Hide the conflict hover tip so it doesn't linger over the open dropdown.
   window.__hideLessonTip();
   // Close any existing dropdowns
   document.querySelectorAll('.assignment-dropdown').forEach(d => d.remove());
@@ -11865,6 +12461,8 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
   if (!block) return;
 
   const currentAssignedGuardId = store.getAssignment(blockId, position, state.selectedWeek);
+  // Shadow mode only makes sense when a mentor is assigned to this slot.
+  if (shadowMode && !currentAssignedGuardId) shadowMode = false;
   
   // Get guards for the day (filtering by crew if not Both)
   const crew = state.selectedCrew === 'Both' ? null : state.selectedCrew;
@@ -11879,8 +12477,24 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
   
   let html = '';
   
-  if (currentAssignedGuardId) {
-    html += `<div class="assignment-option clear" onclick="window.__assignGuard('${blockId}', '${position}', null, event)"><i>-- Clear --</i></div>`;
+  if (shadowMode) {
+    const mentorName = store.getGuardById(currentAssignedGuardId)?.name || 'guard';
+    html += `<div class="assignment-shadow-header">
+               <span class="ash-back" onclick="window.__toggleAssignmentDropdown(event, '${blockId}', '${position}')">‹ Back</span>
+               <span class="ash-title">👥 Shadowing ${escapeHtml(mentorName)}</span>
+             </div>`;
+    store.getBlockShadows(blockId, position, state.selectedWeek).forEach(id => {
+      const gg = store.getGuardById(id);
+      if (gg) html += `<div class="assignment-option shadow-current" onclick="window.__removeBlockShadow('${blockId}', '${position}', '${id}', event)">
+                         <span>👥 ${escapeHtml(gg.name)}</span>
+                         <span class="reason-label">remove ✕</span>
+                       </div>`;
+    });
+  } else if (currentAssignedGuardId) {
+    html += `<div class="assignment-option clear" style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+               <span style="flex:1;" onclick="window.__assignGuard('${blockId}', '${position}', null, event)"><i>-- Clear --</i></span>
+               <button class="ash-add-btn" onclick="window.__enterBlockShadowMode(event, '${blockId}', '${position}')" title="Add a shadow to this assignment">👥 +</button>
+             </div>`;
   }
 
   const guardsWithConflict = guards.map(g => {
@@ -11901,6 +12515,9 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
           break;
         }
       }
+      // Following a mentor elsewhere in this block also counts as occupied.
+      const fp = shadowFollowedPosition(g.id, block, state);
+      if (fp && fp !== position) assignedOtherPos = true;
       if (assignedOtherPos) {
         hasConflict = true;
         reason = 'assigned';
@@ -11918,6 +12535,23 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
     return a.g.name.localeCompare(b.g.name);
   });
 
+  if (shadowMode) {
+    guardsWithConflict.forEach(({ g, hasConflict, reason }) => {
+      if (String(g.id) === String(currentAssignedGuardId)) return; // can't shadow self
+      if (store.getBlockShadows(blockId, position, state.selectedWeek).some(id => String(id) === String(g.id))) return;
+      const shift = store.getShift(g.id, day, state.selectedWeek);
+      const shiftStartHtml = shift ? `<span class="shift-start-badge">${formatTime(shift.startTime)}</span>` : '';
+      const left = `<div style="display: flex; align-items: center; gap: 4px;"><span>${escapeHtml(g.name)}</span>${shiftStartHtml}</div>`;
+      // Respect the Ignore Conflicts toggle: conflicted guards are only
+      // selectable when it's on (manualMode), matching the normal dropdown.
+      if (hasConflict && !state.manualMode) {
+        html += `<div class="assignment-option ineligible" onclick="event.stopPropagation()">${left}<span class="reason-label">${reason}</span></div>`;
+      } else {
+        const rl = hasConflict ? `<span class="reason-label" style="font-size: 0.65rem; color: var(--status-amber); background: var(--status-amber-bg); padding: 2px 6px; border-radius: 12px; margin-left: 8px;">${reason}</span>` : '';
+        html += `<div class="assignment-option${hasConflict ? ' conflict' : ''}" style="display:flex; justify-content:space-between; align-items:center;" onclick="window.__addBlockShadow('${blockId}', '${position}', '${g.id}', event)">${left}${rl}</div>`;
+      }
+    });
+  } else {
   guardsWithConflict.forEach(({ g, hasConflict, reason, isCurrent }) => {
     const shift = store.getShift(g.id, day, state.selectedWeek);
     const shiftStartHtml = shift ? `<span class="shift-start-badge">${formatTime(shift.startTime)}</span>` : '';
@@ -11968,12 +12602,13 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
       }
     }
   });
+  }
 
 
   dropdown.innerHTML = html;
-  
+
   // Position above or below depending on space in viewport to prevent getting cut off
-  const rect = e.currentTarget.getBoundingClientRect();
+  const rect = anchorEl.getBoundingClientRect();
   const spaceBelow = window.innerHeight - rect.bottom;
   const spaceAbove = rect.top;
   
@@ -11992,8 +12627,8 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
   }
 
   // ensure container is relative so absolute pos works
-  e.currentTarget.style.position = 'relative';
-  e.currentTarget.appendChild(dropdown);
+  anchorEl.style.position = 'relative';
+  anchorEl.appendChild(dropdown);
 
   const closeDropdown = () => {
     if (document.body.contains(dropdown)) {
@@ -12002,7 +12637,7 @@ window.__toggleAssignmentDropdown = (e, blockId, position) => {
     document.removeEventListener('click', closeDropdown);
   };
   setTimeout(() => document.addEventListener('click', closeDropdown), 0);
-};
+}
 
 window.__assignGuard = (blockId, position, guardId, event) => {
   if (event) event.stopPropagation();
@@ -12011,6 +12646,21 @@ window.__assignGuard = (blockId, position, guardId, event) => {
   } else {
     store.removeBlockAssignment(blockId, position);
   }
+};
+
+window.__addBlockShadow = (blockId, position, guardId, event) => {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.assignment-dropdown').forEach(d => d.remove());
+  store.addBlockShadow(blockId, position, guardId, store.getState().selectedWeek);
+  const g = store.getGuardById(guardId);
+  const mentor = store.getGuardById(store.getAssignment(blockId, position, store.getState().selectedWeek));
+  showToast(`${g?.name || 'Guard'} is now shadowing ${mentor?.name || 'this assignment'} for this block.`, 'success');
+};
+
+window.__removeBlockShadow = (blockId, position, guardId, event) => {
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.assignment-dropdown').forEach(d => d.remove());
+  store.removeBlockShadow(blockId, position, guardId, store.getState().selectedWeek);
 };
 
   window.__undoAction = () => {
@@ -12941,6 +13591,13 @@ function canAssignGuardToBlockPos(guardId, block, position, state, excludingPos 
       }
     }
   }
+  // Shadowing counts as occupying the mentor's position: flag if the guard is
+  // also following a mentor to a different spot in this same block.
+  const fp = shadowFollowedPosition(guardId, block, state);
+  if (fp && fp !== position && fp !== excludingPos) {
+    const mentorId = store.getShadows(state.selectedDay, state.selectedWeek)[guardId];
+    return { valid: false, reason: `${store.getGuardById(guardId)?.name || 'Guard'} is shadowing ${store.getGuardById(mentorId)?.name || 'someone'} at ${getPositionLabel(fp)} in this block` };
+  }
   return { valid: true };
 }
 
@@ -13391,6 +14048,7 @@ function attachGlobalEvents(state) {
   }
 
   // Copy Week button
+  // Master Schedule toggle + its copy actions
   const copyWeekBtn = document.getElementById('copy-week-btn');
   if (copyWeekBtn) {
     copyWeekBtn.addEventListener('click', () => {
@@ -13826,7 +14484,7 @@ window.exportRotationView = function() {
       if (!blockPositions.includes(pos)) return `<td class="na">—</td>`;
       const gid = store.getAssignment(b.id, pos, week);
       const guard = gid ? store.getGuardById(gid) : null;
-      return guard ? `<td class="filled">${esc(guard.name)}</td>` : `<td class="empty">—</td>`;
+      return guard ? `<td class="filled">${esc(guardSlotDisplayName(gid, guard.name, b, day, week, pos))}</td>` : `<td class="empty">—</td>`;
     }).join('');
     return `<tr>${noteCell}<td class="time">${timeCell}</td>${cells}</tr>`;
   }).join('');
@@ -14071,19 +14729,21 @@ async function appendNotesToPdf(doc, margin) {
   const pageHeight = doc.internal.pageSize.getHeight();
   const usableWidth = pageWidth - margin * 2;
 
-  // Off-screen container sized to the PDF's usable width (at ~2x for crisp text).
-  const RENDER_SCALE = 2;
+  // Off-screen container sized to the PDF's usable width. Rendered at natural
+  // size, then captured by html2canvas at a high scale factor for crisp,
+  // non-pixelated text (html2canvas supersamples rather than upscaling).
   const container = document.createElement('div');
-  container.style.cssText = `position:fixed; left:-10000px; top:0; width:${usableWidth * RENDER_SCALE}px; ` +
-    `padding:${4 * RENDER_SCALE}px ${10 * RENDER_SCALE}px ${8 * RENDER_SCALE}px; background:#ffffff; color:#1e293b; ` +
-    `font-family:Inter, Arial, sans-serif; font-size:${10.5 * RENDER_SCALE}px; line-height:1.5; ` +
+  container.style.cssText = `position:fixed; left:-10000px; top:0; width:${usableWidth}px; ` +
+    `padding:4px 10px 8px; background:#ffffff; color:#1e293b; ` +
+    `font-family:Inter, Arial, sans-serif; font-size:10.5px; line-height:1.5; ` +
     `word-wrap:break-word; box-sizing:border-box;`;
   container.innerHTML = notesHtml;
   document.body.appendChild(container);
 
   let canvas;
   try {
-    canvas = await window.html2canvas(container, { scale: 1, backgroundColor: '#ffffff', useCORS: true });
+    const captureScale = Math.max(3, Math.ceil((window.devicePixelRatio || 1) * 2));
+    canvas = await window.html2canvas(container, { scale: captureScale, backgroundColor: '#ffffff', useCORS: true });
   } catch (e) {
     document.body.removeChild(container);
     return;
@@ -14354,7 +15014,7 @@ function renderReadOnlyBlockAssignments(block, standCount, state) {
     return `
       <div class="assignment-slot ${posType} ${guard ? 'filled' : ''} read-only">
         <span class="position-label">${getPositionLabel(pos)}</span>
-        <span class="assigned-guard">${guard ? guard.name : '- empty -'}</span>
+        <span class="assigned-guard">${guard ? escapeHtml(guardSlotDisplayName(guard.id, guard.name, block, state.selectedDay, state.selectedWeek, pos)) : '- empty -'}</span>
       </div>
     `;
   }).join('');
