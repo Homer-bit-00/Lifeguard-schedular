@@ -1427,7 +1427,9 @@ body::before {
   font-weight: 500;
   color: var(--text-secondary);
   line-height: 1.2;
+  white-space: nowrap;
 }
+.raw-time-item .value { white-space: nowrap; }
 
 .raw-time-item.faded {
   opacity: 0.3;
@@ -3136,12 +3138,13 @@ body::before {
   padding: 12px 14px;
   border: 1px solid var(--border-default);
   border-radius: 0 0 var(--radius-md) var(--radius-md);
-  background: var(--bg-secondary);
-  color: var(--text-primary);
+  background: #ffffff;
+  color: #1e293b;
   font-size: 0.95rem;
   line-height: 1.5;
   outline: none;
 }
+.notes-editor:empty::before { color: #94a3b8; }
 .notes-editor:focus {
   border-color: var(--primary-500);
   box-shadow: 0 0 0 2px var(--primary-800);
@@ -3363,6 +3366,40 @@ body::before {
 .schedule-mode-btn:hover { color: var(--text-primary); }
 .schedule-mode-btn.active { background: var(--primary-600); color: #fff; }
 .schedule-mode-btn.master.active { background: #7c3aed; }
+
+.ref-save-menu {
+  min-width: 200px;
+  max-height: 260px;
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  padding: 4px;
+}
+.ref-save-title {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 10px 4px;
+}
+.ref-save-item {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ref-save-item:hover { background: var(--bg-hover); }
+.ref-save-item.new {
+  color: var(--primary-300);
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+  font-weight: 600;
+}
 </style>
 </head>
 <body>
@@ -3476,6 +3513,7 @@ const defaultState = {
   lessons: [],        // lesson entries
   scheduleNotes: '',  // HTML string of rich-text notes shown below the schedule & appended to the exported PDF
   dayNotes: {},       // per-day notes keyed by `${day}-${week}`, shown under the day in the exported PDF
+  referenceSchedules: [{ key: '__master__', name: 'Master' }],
   settings: { ...defaultSettings },
   selectedDay: 'Monday',
   selectedCrew: 'Both',
@@ -3651,7 +3689,8 @@ function loadState() {
         manualAssignments: parsed.manualAssignments || {},
         isReadOnly: false,
         selectedFilterGuardId: parsed.selectedFilterGuardId || 'all',
-        selectedWeek: (parsed.selectedWeek && parsed.selectedWeek !== '__master__') ? parsed.selectedWeek : getWeekStr(getMonday(new Date())),
+        selectedWeek: (parsed.selectedWeek && !parsed.selectedWeek.startsWith('__')) ? parsed.selectedWeek : getWeekStr(getMonday(new Date())),
+        referenceSchedules: (Array.isArray(parsed.referenceSchedules) && parsed.referenceSchedules.length) ? parsed.referenceSchedules : [{ key: '__master__', name: 'Master' }],
         isLessonsOnly: false,
         sharedWeek: null
       };
@@ -3717,7 +3756,8 @@ function historySnapshot() {
     manualAssignments: JSON.parse(JSON.stringify(state.manualAssignments || {})),
     rotationBlocks: JSON.parse(JSON.stringify(state.rotationBlocks)),
     lessons: JSON.parse(JSON.stringify(state.lessons || [])),
-    shifts: JSON.parse(JSON.stringify(state.shifts || {}))
+    shifts: JSON.parse(JSON.stringify(state.shifts || {})),
+    referenceSchedules: JSON.parse(JSON.stringify(state.referenceSchedules || []))
   };
 }
 
@@ -4223,6 +4263,7 @@ const store = {
       rotationBlocks: previous.rotationBlocks || {},
       lessons: previous.lessons || state.lessons || [],
       shifts: previous.shifts || state.shifts || {},
+      referenceSchedules: previous.referenceSchedules || state.referenceSchedules || [],
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...(state.redoStack || []), current].slice(-10)
     };
@@ -4241,6 +4282,7 @@ const store = {
       rotationBlocks: next.rotationBlocks || {},
       lessons: next.lessons || state.lessons || [],
       shifts: next.shifts || state.shifts || {},
+      referenceSchedules: next.referenceSchedules || state.referenceSchedules || [],
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, current].slice(-10)
     };
@@ -4430,7 +4472,8 @@ const store = {
       settings,
       manualMode,
       scheduleNotes,
-      dayNotes
+      dayNotes,
+      referenceSchedules
     } = state;
     // Canonicalize via normalizeSyncPayload (sorted keys + normalized settings)
     // so the serialized form is deterministic across devices and app versions.
@@ -4445,7 +4488,8 @@ const store = {
       settings,
       manualMode,
       scheduleNotes,
-      dayNotes
+      dayNotes,
+      referenceSchedules
     }));
   },
 
@@ -4864,6 +4908,45 @@ const store = {
       notify();
     }
     return count;
+  },
+
+getReferenceSchedules() {
+    return state.referenceSchedules || [];
+  },
+
+  addReferenceSchedule(name) {
+    const key = `__ref_${generateUUID()}__`;
+    const ref = { key, name: (name && name.trim()) || 'New Schedule' };
+    state = { ...state, referenceSchedules: [...(state.referenceSchedules || []), ref] };
+    notify();
+    return key;
+  },
+
+  renameReferenceSchedule(key, name) {
+    const clean = (name && name.trim()) || '';
+    if (!clean) return;
+    state = {
+      ...state,
+      referenceSchedules: (state.referenceSchedules || []).map(r => r.key === key ? { ...r, name: clean } : r)
+    };
+    notify();
+  },
+
+  deleteReferenceSchedule(key) {
+    pushUndo();
+    const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const newShifts = { ...state.shifts };
+    for (const guard of state.guards) {
+      for (const day of days) {
+        delete newShifts[`${guard.id}-${day}-${key}`];
+      }
+    }
+    state = {
+      ...state,
+      shifts: newShifts,
+      referenceSchedules: (state.referenceSchedules || []).filter(r => r.key !== key)
+    };
+    notify();
   },
 
   overwriteWeekFrom(sourceWeek, targetWeek) {
@@ -8079,51 +8162,114 @@ function hasLessonConflict(lesson, state) {
 const initialWeek = store.getState().selectedWeek;
 let currentWeekStart = initialWeek ? new Date(initialWeek + 'T00:00:00') : getMonday(new Date());
 
-const MASTER_WEEK = '__master__';
+function isReferenceWeek(w) {
+  return typeof w === 'string' && w.startsWith('__');
+}
+function currentReference(state) {
+  return (store.getReferenceSchedules() || []).find(r => r.key === state.selectedWeek) || null;
+}
 let savedRealWeek = null;
 
-window.__toggleMasterSchedule = () => {
-  const st = store.getState();
-  if (st.selectedWeek === MASTER_WEEK) {
+window.__selectSchedule = (target) => {
+  const cur = store.getState().selectedWeek;
+  if (target === 'weekly') {
+    if (!isReferenceWeek(cur)) return;
     store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
   } else {
-    savedRealWeek = st.selectedWeek;
-    store.setSelectedWeek(MASTER_WEEK);
-  }
-};
-
-window.__setMasterSchedule = (on) => {
-  const isMaster = store.getState().selectedWeek === MASTER_WEEK;
-  if (on !== isMaster) window.__toggleMasterSchedule();
-};
-
-window.__copyMasterToWeek = () => {
-  const target = savedRealWeek || store.getState().selectedWeek;
-  if (!target || target === MASTER_WEEK) { showToast('No target week to copy into.', 'info'); return; }
-  if (confirm(`Copy the Master Schedule into the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))}? This overwrites matching shifts in that week.`)) {
-    const n = store.copyShiftsBetweenWeeks(MASTER_WEEK, target);
+    if (!isReferenceWeek(cur)) savedRealWeek = cur;
     store.setSelectedWeek(target);
-    showToast(n > 0 ? `Copied ${n} shifts from Master into the week.` : 'The Master Schedule has no shifts to copy.', n > 0 ? 'success' : 'info');
   }
 };
 
-window.__overwriteWeekWithMaster = () => {
+window.__newReferenceSchedule = () => {
+  const name = window.prompt('Name for the new reference schedule:', 'New Schedule');
+  if (name === null) return;
+  const key = store.addReferenceSchedule(name);
+  window.__selectSchedule(key);
+};
+
+window.__renameCurrentReference = () => {
+  const ref = currentReference(store.getState());
+  if (!ref) return;
+  const name = window.prompt('Rename this reference schedule:', ref.name);
+  if (name === null || !name.trim()) return;
+  store.renameReferenceSchedule(ref.key, name);
+};
+
+window.__deleteCurrentReference = () => {
+  const ref = currentReference(store.getState());
+  if (!ref) return;
+  if (confirm(`Delete the reference schedule “${ref.name}” and all its shifts? This can't be undone here.`)) {
+    const key = ref.key;
+    store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
+    store.deleteReferenceSchedule(key);
+    showToast(`Deleted “${ref.name}”.`, 'info');
+  }
+};
+
+window.__copyReferenceToWeek = () => {
+  const ref = currentReference(store.getState());
   const target = savedRealWeek || store.getState().selectedWeek;
-  if (!target || target === MASTER_WEEK) { showToast('No target week to overwrite.', 'info'); return; }
-  if (confirm(`Overwrite the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))} with the Master Schedule? This CLEARS all existing shifts in that week first, then applies the Master.`)) {
-    const n = store.overwriteWeekFrom(MASTER_WEEK, target);
+  if (!ref || !target || isReferenceWeek(target)) { showToast('No target week to copy into.', 'info'); return; }
+  if (confirm(`Copy “${ref.name}” into the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))}? This overwrites matching shifts in that week.`)) {
+    const n = store.copyShiftsBetweenWeeks(ref.key, target);
     store.setSelectedWeek(target);
-    showToast(`Overwrote the week — now an exact copy of the Master (${n} shifts).`, 'success');
+    showToast(n > 0 ? `Copied ${n} shifts from “${ref.name}” into the week.` : `“${ref.name}” has no shifts to copy.`, n > 0 ? 'success' : 'info');
   }
 };
 
-window.__saveWeekToMaster = () => {
+window.__overwriteWeekWithReference = () => {
+  const ref = currentReference(store.getState());
+  const target = savedRealWeek || store.getState().selectedWeek;
+  if (!ref || !target || isReferenceWeek(target)) { showToast('No target week to overwrite.', 'info'); return; }
+  if (confirm(`Overwrite the week of ${formatWeekLabel(new Date(target + 'T00:00:00'))} with “${ref.name}”? This CLEARS all existing shifts in that week first, then applies the reference.`)) {
+    const n = store.overwriteWeekFrom(ref.key, target);
+    store.setSelectedWeek(target);
+    showToast(`Overwrote the week — now an exact copy of “${ref.name}” (${n} shifts).`, 'success');
+  }
+};
+
+window.__saveWeekToReference = (event) => {
   const src = store.getState().selectedWeek;
-  if (!src || src === MASTER_WEEK) return;
-  if (confirm('Save this week\'s shifts as the Master Schedule? This overwrites the existing Master.')) {
-    const n = store.copyShiftsBetweenWeeks(src, MASTER_WEEK);
-    showToast(n > 0 ? `Saved ${n} shifts to the Master Schedule.` : 'This week has no shifts to save.', n > 0 ? 'success' : 'info');
-  }
+  if (!src || isReferenceWeek(src)) return;
+  if (event) event.stopPropagation();
+  document.querySelectorAll('.ref-save-menu').forEach(m => m.remove());
+
+  const saveTo = (key, name) => {
+    const n = store.overwriteWeekFrom(src, key);
+    showToast(`Saved ${n} shifts to reference “${name}”.`, 'success');
+  };
+
+  const refs = store.getReferenceSchedules() || [];
+  const menu = document.createElement('div');
+  menu.className = 'ref-save-menu';
+  const rect = event && event.currentTarget ? event.currentTarget.getBoundingClientRect() : { bottom: 80, left: 20 };
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 260);
+  menu.style.cssText = `position:fixed; top:${top}px; left:${rect.left}px; z-index:1000;`;
+  menu.innerHTML = `<div class="ref-save-title">Save this week to…</div>` +
+    refs.map(r => `<div class="ref-save-item" data-key="${r.key}">🗂️ ${escapeHtml(r.name)}</div>`).join('') +
+    `<div class="ref-save-item new" data-new="1">＋ New reference…</div>`;
+  document.body.appendChild(menu);
+
+  menu.querySelectorAll('.ref-save-item').forEach(item => {
+    item.addEventListener('click', () => {
+      menu.remove();
+      if (item.dataset.new) {
+        const name = window.prompt('Name for the new reference schedule:', 'New Schedule');
+        if (name === null || !name.trim()) return;
+        const key = store.addReferenceSchedule(name);
+        saveTo(key, name.trim());
+      } else {
+        const ref = refs.find(r => r.key === item.dataset.key);
+        if (ref) saveTo(ref.key, ref.name);
+      }
+    });
+  });
+
+  setTimeout(() => {
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
 };
 
 // "Universal emoji" is a DEVICE-LOCAL preference (not part of synced settings),
@@ -8174,11 +8320,11 @@ function render() {
   const windowScrollX = typeof window !== 'undefined' ? (window.scrollX || 0) : 0;
   const windowScrollY = typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
 
-  if (state.selectedWeek === MASTER_WEEK && state.activeTab !== 'schedule') {
+  if (isReferenceWeek(state.selectedWeek) && state.activeTab !== 'schedule') {
     store.setSelectedWeek(savedRealWeek || getWeekStr(getMonday(new Date())));
     return;
   }
-  if (state.selectedWeek && state.selectedWeek !== MASTER_WEEK) {
+  if (state.selectedWeek && !isReferenceWeek(state.selectedWeek)) {
     currentWeekStart = new Date(state.selectedWeek + 'T00:00:00');
   }
 
@@ -8472,7 +8618,8 @@ function renderSubNav(state) {
   const days = store.getDays();
   const crewOptions = ['AM', 'PM', 'Both'];
   const daySelectorDisabled = state.activeTab === 'schedule' || state.activeTab === 'lessons';
-  const isMaster = state.selectedWeek === MASTER_WEEK;
+  const activeRef = currentReference(state);
+  const isMaster = isReferenceWeek(state.selectedWeek);
 
   return `
     <div class="sub-nav">
@@ -8501,7 +8648,7 @@ function renderSubNav(state) {
 
       <div class="week-navigator" style="display:flex; align-items:center; gap:8px; flex: 0 0 auto; justify-content: center;">
         <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(-7)" title="Previous Week" ${isMaster ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>◀</button>
-        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);${isMaster ? ' color:#a78bfa;' : ''}" ${isMaster ? '' : 'onclick="window.__navigateToCurrentWeek()" title="Go to Current Week"'}>${isMaster ? '🗂️ Master Schedule' : formatWeekLabel(currentWeekStart)}</span>
+        <span class="week-label" style="font-weight:600; font-size:var(--font-sm);${isMaster ? ' color:#a78bfa;' : ''}" ${isMaster ? '' : 'onclick="window.__navigateToCurrentWeek()" title="Go to Current Week"'}>${isMaster ? `🗂️ ${escapeHtml(activeRef ? activeRef.name : 'Reference')}` : formatWeekLabel(currentWeekStart)}</span>
         <button class="btn btn-ghost btn-icon btn-sm" onclick="window.__navigateWeek(7)" title="Next Week" ${isMaster ? 'disabled style="opacity:0.3; cursor:not-allowed;"' : ''}>▶</button>
       </div>
 
@@ -8539,31 +8686,37 @@ function renderActiveTab(state) {
 // ════════════════════════════════════════════════════════════
 
 function renderScheduleTab(state) {
-  const isMaster = state.selectedWeek === MASTER_WEEK;
+  const refs = store.getReferenceSchedules() || [];
+  const activeRef = currentReference(state);
+  const isRef = isReferenceWeek(state.selectedWeek);
+  const refPills = refs.map(r => `<button class="schedule-mode-btn master ${state.selectedWeek === r.key ? 'active' : ''}" onclick="window.__selectSchedule('${r.key}')" title="Edit the “${escapeHtml(r.name)}” reference schedule">🗂️ ${escapeHtml(r.name)}</button>`).join('');
   return `
-    <div class="schedule-layout${isMaster ? ' master-mode' : ''}">
+    <div class="schedule-layout${isRef ? ' master-mode' : ''}">
       <div class="schedule-grid-container">
         <div class="card">
-          ${isMaster ? `<div class="master-banner">🗂️ Master Schedule — baseline template for reference. Edit freely, then use “Copy Master → Week”. This never affects real-week availability or conflicts.</div>` : ''}
+          ${isRef ? `<div class="master-banner">🗂️ ${escapeHtml(activeRef ? activeRef.name : 'Reference')} — reference template. Edit freely, then use “Copy → Week”. This never affects real-week availability or conflicts.</div>` : ''}
           <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap: wrap; gap: 12px;">
             <div class="flex items-center gap-3" style="flex-wrap: wrap;">
               <div>
-                <h2>${isMaster ? 'Master Schedule' : 'Weekly Schedule'}</h2>
+                <h2>${isRef ? escapeHtml(activeRef ? activeRef.name : 'Reference') : 'Weekly Schedule'}</h2>
                 <div class="schedule-mode-toggle">
-                  <button class="schedule-mode-btn ${!isMaster ? 'active' : ''}" onclick="window.__setMasterSchedule(false)" title="Edit the live weekly schedule">📅 Weekly</button>
-                  <button class="schedule-mode-btn master ${isMaster ? 'active' : ''}" onclick="window.__setMasterSchedule(true)" title="Edit the reference Master Schedule">🗂️ Master</button>
+                  <button class="schedule-mode-btn ${!isRef ? 'active' : ''}" onclick="window.__selectSchedule('weekly')" title="Edit the live weekly schedule">📅 Weekly</button>
+                  ${refPills}
+                  <button class="schedule-mode-btn add" onclick="window.__newReferenceSchedule()" title="Create a new reference schedule">＋</button>
                 </div>
               </div>
             </div>
             <div class="flex gap-2">
-              ${isMaster
-                ? `<button class="btn btn-secondary btn-sm" id="copy-master-to-week-btn" title="Copy the Master Schedule into your current week (merges over existing shifts)">📥 Copy Master → Week</button>
-              <button class="btn btn-secondary btn-sm" id="overwrite-week-btn" title="Clear the current week, then replace it with the Master Schedule">♻️ Overwrite Week</button>`
-                : `<button class="btn btn-secondary btn-sm" id="save-week-to-master-btn" title="Save this week's shifts as the Master Schedule">💾 Save to Master</button>
+              ${isRef
+                ? `<button class="btn btn-secondary btn-sm" onclick="window.__copyReferenceToWeek()" title="Copy this reference into your current week (merges over existing shifts)">📥 Copy → Week</button>
+              <button class="btn btn-secondary btn-sm" onclick="window.__overwriteWeekWithReference()" title="Clear the current week, then replace it with this reference">♻️ Overwrite Week</button>
+              <button class="btn btn-secondary btn-sm" onclick="window.__renameCurrentReference()" title="Rename this reference schedule">✎ Rename</button>
+              <button class="btn btn-danger btn-sm" onclick="window.__deleteCurrentReference()" title="Delete this reference schedule">🗑 Delete</button>`
+                : `<button class="btn btn-secondary btn-sm" onclick="window.__saveWeekToReference(event)" title="Save this week's shifts as a reference schedule">💾 Save to Reference</button>
               <button class="btn btn-secondary btn-sm" id="copy-week-btn" title="Copy all shifts from this week">📋 Copy Week</button>
-              <button class="btn btn-secondary btn-sm" id="paste-week-btn" title="Paste the copied week's shifts into this week" ${store.hasWeekClipboard() ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>📥 Paste Week</button>`}
+              <button class="btn btn-secondary btn-sm" id="paste-week-btn" title="Paste the copied week's shifts into this week" ${store.hasWeekClipboard() ? '' : 'disabled style="opacity:0.5; cursor:not-allowed;"'}>📥 Paste Week</button>
               <button class="btn btn-secondary btn-sm" id="share-link-btn" title="Generate shareable URL link for guards">🔗 Share Link</button>
-              <button class="btn btn-secondary btn-sm" id="export-pdf-btn">Export PDF</button>
+              <button class="btn btn-secondary btn-sm" id="export-pdf-btn">Export PDF</button>`}
             </div>
           </div>
           <div class="card-body" style="overflow-x:auto;">
@@ -8732,7 +8885,7 @@ function renderWeeklyGrid(state) {
         <tr>
           <th style="text-align:left;">Guard</th>
           ${days.map((d, idx) => {
-            const isMaster = state.selectedWeek === MASTER_WEEK;
+            const isMaster = isReferenceWeek(state.selectedWeek);
             const dayDate = new Date(currentWeekStart);
             dayDate.setDate(dayDate.getDate() + idx);
             const dateNum = dayDate.getDate();
@@ -9415,6 +9568,20 @@ function renderWeeklyTrackerTable(state) {
     `;
   }
 
+  const guardWeekAvg = (g) => {
+    let total = 0, worked = 0;
+    days.forEach(d => {
+      if (!store.getShift(g.id, d, state.selectedWeek)) return;
+      const blocks = store.getBlocksForDay(d);
+      const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
+      total += (isNaN(st.percentage) ? 0 : st.percentage);
+      worked++;
+    });
+    return worked > 0 ? total / worked : null;
+  };
+  const weekAvgList = guards.map(guardWeekAvg).filter(v => v !== null);
+  const groupWeekAvg = weekAvgList.length > 0 ? weekAvgList.reduce((a, b) => a + b, 0) / weekAvgList.length : 0;
+
   return `
     <table class="weekly-tracker-table">
       <thead>
@@ -9441,8 +9608,9 @@ function renderWeeklyTrackerTable(state) {
             const blocks = store.getBlocksForDay(d);
             const st = calcGuardStandTime(g.id, d, state.blockAssignments, blocks, state.shifts, settings, filteredLessons, state.selectedWeek);
 
-            // Compute day crew average for color
-            const dayGuards = store.getGuardsWorkingDay(d, g.crewSection, state.selectedWeek);
+            // Compare against the same group as the daily tracker: everyone
+            // working that day within the current crew filter (all crews on "Both").
+            const dayGuards = store.getGuardsWorkingDay(d, crew, state.selectedWeek);
             let dayAvg = 0;
             if (dayGuards.length > 0) {
               dayAvg = dayGuards.reduce((sum, dg) => {
@@ -9459,21 +9627,20 @@ function renderWeeklyTrackerTable(state) {
             return `<td><span class="percentage-cell ${status}">${pct}%</span></td>`;
           }).join('');
 
-          const weekAvg = daysWorked > 0 ? Math.round(totalPct / daysWorked) : 0;
+          const weekAvgRaw = daysWorked > 0 ? totalPct / daysWorked : null;
+          const weekAvg = weekAvgRaw !== null ? Math.round(weekAvgRaw) : 0;
+          const weekStatus = weekAvgRaw !== null ? getStandTimeStatus(weekAvgRaw, groupWeekAvg) : 'none';
 
           return `
             <tr>
               <td class="guard-name">
                 <div class="flex items-center gap-2">
-                  <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
-                    ${escapeHtml(g.name.charAt(0))}
-                  </div>
                   ${escapeHtml(g.name)}
                   <span class="crew-badge ${escapeHtml(g.crewSection.toLowerCase())}" style="font-size:0.55rem;">${escapeHtml(g.crewSection)}</span>
                 </div>
               </td>
               ${dayCells}
-              <td><span class="percentage-cell ${weekAvg > 0 ? 'green' : 'none'}" style="font-weight:700;">${weekAvg > 0 ? weekAvg + '%' : '—'}</span></td>
+              <td><span class="percentage-cell ${weekStatus}" style="font-weight:700;">${weekAvgRaw !== null ? weekAvg + '%' : '—'}</span></td>
             </tr>
           `;
         }).join('')}
@@ -9564,9 +9731,6 @@ function renderWeeklyRawTrackerTable(state) {
             <tr>
               <td class="guard-name">
                 <div class="flex items-center gap-2">
-                  <div class="guard-avatar ${escapeHtml(g.crewSection.toLowerCase())}" style="width:20px;height:20px;font-size:0.55rem;">
-                    ${escapeHtml(g.name.charAt(0))}
-                  </div>
                   ${escapeHtml(g.name)}
                   <span class="crew-badge ${escapeHtml(g.crewSection.toLowerCase())}" style="font-size:0.55rem;">${escapeHtml(g.crewSection)}</span>
                 </div>
@@ -13227,15 +13391,6 @@ function attachGlobalEvents(state) {
   }
 
   // Copy Week button
-  const masterBtn = document.getElementById('master-schedule-btn');
-  if (masterBtn) masterBtn.addEventListener('click', () => window.__toggleMasterSchedule());
-  const copyMasterToWeekBtn = document.getElementById('copy-master-to-week-btn');
-  if (copyMasterToWeekBtn) copyMasterToWeekBtn.addEventListener('click', () => window.__copyMasterToWeek());
-  const overwriteWeekBtn = document.getElementById('overwrite-week-btn');
-  if (overwriteWeekBtn) overwriteWeekBtn.addEventListener('click', () => window.__overwriteWeekWithMaster());
-  const saveWeekToMasterBtn = document.getElementById('save-week-to-master-btn');
-  if (saveWeekToMasterBtn) saveWeekToMasterBtn.addEventListener('click', () => window.__saveWeekToMaster());
-
   const copyWeekBtn = document.getElementById('copy-week-btn');
   if (copyWeekBtn) {
     copyWeekBtn.addEventListener('click', () => {
