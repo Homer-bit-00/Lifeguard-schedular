@@ -986,6 +986,42 @@ body::before {
   display: grid;
   grid-template-columns: 1fr 340px;
   gap: var(--space-6);
+  align-items: start;
+}
+
+/* Keep the daily tracker in view while scrolling the rotation blocks; it
+   sticks just below the sticky nav bar and scrolls on its own. */
+.rotation-tracker-col {
+  position: sticky;
+  top: 72px;
+  align-self: start;
+  max-height: calc(100vh - 88px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+/* Inside the scrollable tracker column the CSS popups would be clipped, so hide
+   them — a body-level floating copy (#tracker-hover-tip) is shown instead. */
+.rotation-tracker-col .credit-tip > .credit-pop { display: none !important; }
+#tracker-hover-tip {
+  position: fixed;
+  z-index: 4000;
+  display: none;
+  pointer-events: none;
+  max-width: 300px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: 7px 10px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+#tracker-hover-tip .credit-pop-total {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 5px;
+  padding-top: 5px;
 }
 
 .block-grid {
@@ -1464,8 +1500,16 @@ body::before {
 
 /* ─── Settings Panel ───────────────────────────────────── */
 .settings-grid {
-  column-count: 2;
-  column-gap: var(--space-6);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-6);
+}
+.settings-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 /* Sections are transparent wrappers so every card shares ONE balanced column
@@ -1476,10 +1520,7 @@ body::before {
 }
 
 .settings-grid .card {
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  page-break-inside: avoid;
-  margin: 0 0 var(--space-4) 0;
+  margin: 0;
 }
 
 .setting-item {
@@ -1794,7 +1835,7 @@ body::before {
   }
 
   .settings-grid {
-    column-count: 1;
+    flex-direction: column;
   }
 }
 
@@ -2098,7 +2139,7 @@ body::before {
   max-height: 250px;
   overflow-y: auto;
   margin-top: 4px;
-  padding: 4px 0;
+  padding: 0;
 }
 
 .assignment-option {
@@ -2157,6 +2198,135 @@ body::before {
   margin-left: 6px;
   white-space: nowrap;
 }
+
+/* Spreadsheet-style guard selector */
+.assign-table { min-width: 300px; }
+.assign-row {
+  display: grid;
+  /* Fixed shift column so guard names start at the same x on every row. */
+  grid-template-columns: 118px 1fr max-content;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: var(--font-sm);
+}
+.assign-row.assign-head {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-default);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+.assign-head .sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.assign-head .sortable:hover { color: var(--text-primary); }
+.assign-row:not(.assign-head) { cursor: pointer; }
+.assign-row.ineligible { cursor: default; opacity: 0.6; }
+.assign-row:not(.assign-head):not(.ineligible):hover { background: var(--primary-600); }
+.assign-cell.assign-shift {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.assign-cell.assign-guard {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+.assign-cell.assign-shift { text-align: left; }
+/* Guard-name pill tinted to match the daily tracker's traffic-light colour. */
+.assign-guard .gname { display: inline-block; padding: 1px 9px; border-radius: 999px; }
+.assign-guard .gname.s-green { background: rgba(22, 163, 74, 0.24); }
+.assign-guard .gname.s-amber { background: rgba(245, 158, 11, 0.22); }
+.assign-guard .gname.s-red { background: rgba(239, 68, 68, 0.22); }
+.assign-cell.assign-meta { text-align: right; white-space: nowrap; font-size: 0.68rem; }
+.assign-meta .cooldown { color: var(--text-secondary); }
+.assign-meta .assign-reason { padding: 2px 6px; border-radius: 10px; background: var(--bg-tertiary); }
+.assign-meta .r-teaching,
+.assign-meta .r-not-on-shift,
+.assign-meta .r-custom { color: var(--status-amber); }
+.assign-meta .r-assigned,
+.assign-meta .r-current { color: var(--status-red); }
+
+/* Custom conflicts modal */
+.conflict-day-bubble {
+  padding: 0 8px;
+  min-width: 44px;
+  height: 32px;
+  border-radius: 16px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 0.7rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+.conflict-day-bubble.selected {
+  background: var(--primary-600);
+  color: #fff;
+  border-color: var(--primary-600);
+}
+.cc-disabled { opacity: 0.4; pointer-events: none; }
+.cc-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.cc-item:last-child { border-bottom: none; }
+.cc-item-title { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
+.cc-item-sub { font-size: 0.72rem; color: var(--text-tertiary); }
+.cc-badge {
+  font-size: 0.6rem;
+  color: var(--primary-200);
+  background: rgba(124, 58, 237, 0.18);
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-left: 4px;
+}
+
+/* Auto Assign + gear as a single segmented pill */
+.auto-assign-group {
+  display: inline-flex;
+  align-items: stretch;
+  border-radius: 999px;
+  overflow: hidden;
+}
+.auto-assign-group > .btn { border-radius: 0; margin: 0; }
+.auto-assign-group > .aa-gear {
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+/* Auto-assign exclusions menu */
+.autoassign-menu { min-width: 220px; max-height: 320px; overflow-y: auto; }
+.autoassign-menu .aa-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.autoassign-menu .aa-item:hover { background: var(--bg-hover); }
+.autoassign-menu .aa-item input { cursor: pointer; margin: 0; }
 
 
 
@@ -3018,7 +3188,7 @@ body::before {
   box-shadow: var(--glass-shadow);
   padding: 12px;
   min-width: 260px;
-  z-index: 100;
+  z-index: 1100;
   pointer-events: none;
   transition: opacity var(--transition-fast), transform var(--transition-fast);
   display: flex;
@@ -3168,7 +3338,9 @@ body::before {
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   background: #ffffff;
   color: #1e293b;
-  font-family: Inter, Arial, sans-serif;
+  /* Helvetica/Arial to match jsPDF's built-in helvetica metrics, so on-screen
+     wrapping closely matches the exported PDF text. */
+  font-family: Helvetica, Arial, sans-serif;
   font-size: 10.5px;
   line-height: 1.5;
   outline: none;
@@ -3521,6 +3693,8 @@ const defaultSettings = {
   lessonsEndTime: '18:00',
   lessonsExcludeSaturday: false,
   lessonsSlotHeight: 50,
+  lessonBufferBeforeMinutes: 0,  // minutes before a lesson that still block rotation
+  lessonBufferAfterMinutes: 5,   // minutes after a lesson that still block rotation
   teamupApiKey: '',
   teamupCalendarKey: '',
   noteTemplates: ['Swim lesson', 'Adult lap swim', 'Birthday party', 'Swim meet'],
@@ -3578,6 +3752,8 @@ const defaultState = {
   dayNotes: {},       // per-day notes keyed by `${day}-${week}`, shown under the day in the exported PDF
   shadows: {},        // per-day shadow pairings keyed by `${day}-${week}` → { [shadowGuardId]: mentorGuardId }
   blockShadows: {},   // per-block shadow pairings keyed by `${blockId}-${pos}-${week}` → [shadowGuardId, …]
+  customConflicts: [],// user-defined all-day conflicts: { id, title, guardId, persistent, days:[{day,date}] }
+  autoAssignExclusions: [], // guardIds to skip during Auto Assign
   // Reference/template schedules. Each stores its shifts under its `key` (a
   // sentinel "week" that starts with "__"), so all normal shift logic works.
   referenceSchedules: [{ key: '__master__', name: 'Master' }],
@@ -3826,7 +4002,8 @@ function historySnapshot() {
     shifts: JSON.parse(JSON.stringify(state.shifts || {})),
     referenceSchedules: JSON.parse(JSON.stringify(state.referenceSchedules || [])),
     shadows: JSON.parse(JSON.stringify(state.shadows || {})),
-    blockShadows: JSON.parse(JSON.stringify(state.blockShadows || {}))
+    blockShadows: JSON.parse(JSON.stringify(state.blockShadows || {})),
+    customConflicts: JSON.parse(JSON.stringify(state.customConflicts || []))
   };
 }
 
@@ -4352,6 +4529,7 @@ const store = {
       referenceSchedules: previous.referenceSchedules || state.referenceSchedules || [],
       shadows: previous.shadows || state.shadows || {},
       blockShadows: previous.blockShadows || state.blockShadows || {},
+      customConflicts: previous.customConflicts || state.customConflicts || [],
       undoStack: state.undoStack.slice(0, -1),
       redoStack: [...(state.redoStack || []), current].slice(-10)
     };
@@ -4373,6 +4551,7 @@ const store = {
       referenceSchedules: next.referenceSchedules || state.referenceSchedules || [],
       shadows: next.shadows || state.shadows || {},
       blockShadows: next.blockShadows || state.blockShadows || {},
+      customConflicts: next.customConflicts || state.customConflicts || [],
       redoStack: state.redoStack.slice(0, -1),
       undoStack: [...state.undoStack, current].slice(-10)
     };
@@ -4565,7 +4744,9 @@ const store = {
       dayNotes,
       referenceSchedules,
       shadows,
-      blockShadows
+      blockShadows,
+      customConflicts,
+      autoAssignExclusions
     } = state;
     // Canonicalize via normalizeSyncPayload (sorted keys + normalized settings)
     // so the serialized form is deterministic across devices and app versions.
@@ -4583,7 +4764,9 @@ const store = {
       dayNotes,
       referenceSchedules,
       shadows,
-      blockShadows
+      blockShadows,
+      customConflicts,
+      autoAssignExclusions
     }));
   },
 
@@ -5036,6 +5219,45 @@ const store = {
     this.setShadow(shadowGuardId, null, day, week);
   },
 
+  // ─── Custom (user-defined) conflicts ─────────────────
+  getCustomConflicts() {
+    return state.customConflicts || [];
+  },
+
+  addCustomConflict(conflict) {
+    const c = { id: generateUUID(), title: '', guardId: '', persistent: false, days: [], ...conflict };
+    pushUndo();
+    state = { ...state, customConflicts: [...(state.customConflicts || []), c] };
+    notify();
+    return c.id;
+  },
+
+  updateCustomConflict(id, patch) {
+    pushUndo();
+    state = { ...state, customConflicts: (state.customConflicts || []).map(c => c.id === id ? { ...c, ...patch } : c) };
+    notify();
+  },
+
+  deleteCustomConflict(id) {
+    pushUndo();
+    state = { ...state, customConflicts: (state.customConflicts || []).filter(c => c.id !== id) };
+    notify();
+  },
+
+  // ─── Auto-assign exclusions ──────────────────────────
+  getAutoAssignExclusions() {
+    return state.autoAssignExclusions || [];
+  },
+
+  toggleAutoAssignExclusion(guardId) {
+    const cur = state.autoAssignExclusions || [];
+    const next = cur.some(id => String(id) === String(guardId))
+      ? cur.filter(id => String(id) !== String(guardId))
+      : [...cur, guardId];
+    state = { ...state, autoAssignExclusions: next };
+    notify();
+  },
+
   // Per-block manual shadows: a guard shadows whoever is assigned at a specific
   // block+position. Stored as an array so a slot can carry more than one shadow.
   getBlockShadows(blockId, position, week) {
@@ -5276,15 +5498,16 @@ const store = {
         if (isTargetWeek) {
           const sStart = timeToMinutes(shift.startTime);
           const sEnd = timeToMinutes(shift.endTime);
-          
-          // Overlap check for opening period
-          if (sStart < openEndMin && sEnd > openStartMin) {
-            openCount++;
-          }
-          // Overlap check for closing period
-          if (sStart < closeEndMin && sEnd > closeStartMin) {
-            closeCount++;
-          }
+
+          // A shift qualifies if it overlaps the window; when the window has
+          // zero length (start === end) it's treated as that single instant, so
+          // a shift covering that moment (inclusive) still counts.
+          const inWindow = (ws, we) => ws === we
+            ? (sStart <= ws && sEnd >= ws)
+            : (sStart < we && sEnd > ws);
+
+          if (inWindow(openStartMin, openEndMin)) openCount++;
+          if (inWindow(closeStartMin, closeEndMin)) closeCount++;
         }
       }
     }
@@ -6589,20 +6812,26 @@ function generateBlocks(shifts, intervalMinutes = 30, config = null) {
       const end = timeToMinutes(extra.endTime);
       if (start >= end || intervalMinutes <= 0) continue;
 
+      // "Single block" windows span the whole range as one block, ignoring the
+      // rotation interval.
+      if (extra.whole) {
+        blocks.push({
+          id: generateUUID(),
+          startTime: minutesToTime(start),
+          endTime: minutesToTime(end),
+          interval: end - start,
+          guardCountOverride: null,
+          note: '',
+          isExtra: true,
+        });
+        continue;
+      }
+
       let cursor = start;
-      const align = extra.align ?? true;
 
       while (cursor < end) {
-        let blockEnd;
-        if (align) {
-          // Align to multiples of intervalMinutes
-          const nextBoundary = Math.floor(cursor / intervalMinutes) * intervalMinutes + intervalMinutes;
-          blockEnd = Math.min(nextBoundary, end);
-        } else {
-          // Increment directly from startTime
-          blockEnd = Math.min(cursor + intervalMinutes, end);
-        }
-        
+        // Blocks increment directly from the window's start time.
+        const blockEnd = Math.min(cursor + intervalMinutes, end);
         const actualInterval = blockEnd - cursor;
 
         blocks.push({
@@ -7074,13 +7303,15 @@ function isGuardAvailableForBlock(guardId, block, shifts, day, week) {
  * @param {string} day - Day of the week
  * @returns {boolean}
  */
-function isGuardTeachingDuringBlock(guardId, block, day, lessons) {
+function isGuardTeachingDuringBlock(guardId, block, day, lessons, bufferBefore = 0, bufferAfter = 5) {
   if (!lessons || !Array.isArray(lessons)) {
     return false;
   }
 
   const blockStart = timeToMinutes(block.startTime);
   const blockEnd = timeToMinutes(block.endTime);
+  const before = Number.isFinite(bufferBefore) ? bufferBefore : 0;
+  const after = Number.isFinite(bufferAfter) ? bufferAfter : 5;
 
   return lessons.some(lesson => {
     if (String(lesson.guardId) !== String(guardId) || lesson.day !== day) {
@@ -7088,9 +7319,9 @@ function isGuardTeachingDuringBlock(guardId, block, day, lessons) {
     }
     const lessonStart = timeToMinutes(lesson.startTime);
     const lessonEnd = timeToMinutes(lesson.endTime);
-    // Conflict if the lesson overlaps the block OR ended fewer than 5 minutes
-    // before the block starts (a guard needs a 5-min buffer after a lesson).
-    return lessonStart < blockEnd && lessonEnd > blockStart - 5;
+    // Conflict if the block overlaps the lesson expanded by the configured
+    // before/after buffer (a guard needs that much clearance around a lesson).
+    return blockStart < lessonEnd + after && blockEnd > lessonStart - before;
   });
 }
 
@@ -7110,6 +7341,40 @@ function getAvailableGuards(guards, block, shifts, day, lessons, week) {
     isGuardAvailableForBlock(guard.id, block, shifts, day, week) &&
     !isGuardTeachingDuringBlock(guard.id, block, day, lessons)
   );
+}
+
+const DAY_INDEX = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5, Sunday: 6 };
+
+function dateForDayWeek(day, week) {
+  if (!week || week.startsWith('__')) return null;
+  const d = new Date(week + 'T00:00:00');
+  d.setDate(d.getDate() + (DAY_INDEX[day] ?? 0));
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const da = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${da}`;
+}
+
+function guardCustomConflict(guardId, day, week, customConflicts, shift, rangeStartMin, rangeEndMin) {
+  if (!customConflicts || !customConflicts.length) return null;
+  if (!shift) return null; // must be on shift that day for a conflict to apply
+  const shiftStart = timeToMinutes(shift.startTime);
+  const shiftEnd = timeToMinutes(shift.endTime);
+  const dateStr = dateForDayWeek(day, week);
+  for (const c of customConflicts) {
+    if (String(c.guardId) !== String(guardId)) continue;
+    const hit = (c.days || []).some(d => c.persistent ? d.day === day : (dateStr && d.date === dateStr));
+    if (!hit) continue;
+    let cs, ce;
+    if (c.startTime && c.endTime) { cs = timeToMinutes(c.startTime); ce = timeToMinutes(c.endTime); }
+    else { cs = shiftStart; ce = shiftEnd; }
+    const ws = Math.max(cs, shiftStart);
+    const we = Math.min(ce, shiftEnd);
+    if (we <= ws) continue;
+    if (rangeStartMin != null && rangeEndMin != null && !(rangeStartMin < we && rangeEndMin > ws)) continue;
+    return c;
+  }
+  return null;
 }
 
 
@@ -7146,19 +7411,20 @@ function isAvailable(guardId, block, shifts, day, week) {
 /**
  * Check if a guard has lessons overlapping a block.
  */
-function isTeaching(guardId, block, day, lessons) {
+function isTeaching(guardId, block, day, lessons, bufferBefore = 0, bufferAfter = 5) {
   if (!lessons || !Array.isArray(lessons)) return false;
-  
+
   const blockStart = timeToMinutes(block.startTime);
   const blockEnd = timeToMinutes(block.endTime);
-  
+  const before = Number.isFinite(bufferBefore) ? bufferBefore : 0;
+  const after = Number.isFinite(bufferAfter) ? bufferAfter : 5;
+
   return lessons.some(lesson => {
     if (lesson.guardId !== guardId || lesson.day !== day) return false;
     const lessonStart = timeToMinutes(lesson.startTime);
     const lessonEnd = timeToMinutes(lesson.endTime);
-    // Conflict if the lesson overlaps the block OR ended fewer than 5 minutes
-    // before the block starts (a guard needs a 5-min buffer after a lesson).
-    return lessonStart < blockEnd && lessonEnd > blockStart - 5;
+    // Conflict if the block overlaps the lesson expanded by the before/after buffer.
+    return blockStart < lessonEnd + after && blockEnd > lessonStart - before;
   });
 }
 
@@ -7215,7 +7481,8 @@ function blockMinutes(block, fallback) {
  * @returns {Array<{blockId: string, position: string, guardId: string}>}
  */
 function generateRotation(day, crewSection, state) {
-  const { guards, shifts, settings, rotationBlocks, blockAssignments, manualAssignments = {}, lessons = [], selectedWeek } = state;
+  const { guards, shifts, settings, rotationBlocks, blockAssignments, manualAssignments = {}, lessons = [], selectedWeek, customConflicts = [], autoAssignExclusions = [] } = state;
+  const excludedSet = new Set((autoAssignExclusions || []).map(String));
   const filteredLessons = selectedWeek ? lessons.filter(l => l.week === selectedWeek) : lessons;
   const standCount = settings.standCount ?? 2;
   const excludeDoor = !!settings?.excludeDoor;
@@ -7233,6 +7500,7 @@ function generateRotation(day, crewSection, state) {
   const allCrews = !crewSection || crewSection === 'Both';
   const crewGuards = guards.filter(g => {
     if (!allCrews && g.crewSection !== crewSection) return false;
+    if (excludedSet.has(String(g.id))) return false; // excluded from Auto Assign
     const keyWithWeek = selectedWeek ? `${g.id}-${day}-${selectedWeek}` : null;
     const keyWithoutWeek = `${g.id}-${day}`;
     return !!((shifts && keyWithWeek && shifts[keyWithWeek]) || (shifts && shifts[keyWithoutWeek]));
@@ -7299,7 +7567,10 @@ function generateRotation(day, crewSection, state) {
     // Eligible guards for this block (on shift, not teaching).
     const eligible = crewGuardIds.filter(gid =>
       isAvailable(gid, block, shifts, day, selectedWeek) &&
-      !isTeaching(gid, block, day, filteredLessons)
+      !isTeaching(gid, block, day, filteredLessons, settings.lessonBufferBeforeMinutes ?? 0, settings.lessonBufferAfterMinutes ?? 5) &&
+      !guardCustomConflict(gid, day, selectedWeek, customConflicts,
+        (shifts && ((selectedWeek && shifts[`${gid}-${day}-${selectedWeek}`]) || shifts[`${gid}-${day}`])) || null,
+        timeToMinutes(block.startTime), timeToMinutes(block.endTime))
     );
 
     // Current credited percentages (from assignments decided so far) for balance.
@@ -8339,16 +8610,28 @@ let selectedReadOnlyTab = 'rotation';
 const selectedBlockIds = new Set();
 let lastRenderedDay = null;
 let lastRenderedTab = null;
+// Daily-tracker view prefs, persisted in localStorage so they survive refreshes.
+const TRACKER_PREFS_KEY = 'lifeguard.trackerPrefs';
 let trackerSort = 'start'; // daily tracker sort: 'start' (shift start time) | 'percent' (lowest first)
 let trackerTimeline = false; // daily tracker bar mode: false = proportion bar, true = time-scaled timeline
+try {
+  const saved = JSON.parse(localStorage.getItem(TRACKER_PREFS_KEY) || '{}');
+  if (saved.sort === 'start' || saved.sort === 'percent') trackerSort = saved.sort;
+  if (typeof saved.timeline === 'boolean') trackerTimeline = saved.timeline;
+} catch (e) {}
+function saveTrackerPrefs() {
+  try { localStorage.setItem(TRACKER_PREFS_KEY, JSON.stringify({ sort: trackerSort, timeline: trackerTimeline })); } catch (e) {}
+}
 
 window.__setTrackerSort = (mode) => {
   trackerSort = mode;
+  saveTrackerPrefs();
   if (typeof render === 'function') render();
 };
 
 window.__toggleTrackerTimeline = () => {
   trackerTimeline = !trackerTimeline;
+  saveTrackerPrefs();
   if (typeof render === 'function') render();
 };
 
@@ -8480,6 +8763,41 @@ function extractBlockIdFromAssignmentKey(key) {
 
 
 
+// The daily tracker sits in a scrollable, sticky column, which clips its CSS
+// hover popups. Inside that column we mirror each .credit-tip's popup into a
+// fixed, body-level element so it can't be cropped. (The CSS popups are hidden
+// there via .rotation-tracker-col .credit-pop { display:none }.)
+(function initTrackerHoverTip() {
+  const ensureTip = () => {
+    let t = document.getElementById('tracker-hover-tip');
+    if (!t) { t = document.createElement('div'); t.id = 'tracker-hover-tip'; document.body.appendChild(t); }
+    return t;
+  };
+  const position = (e) => {
+    const t = document.getElementById('tracker-hover-tip');
+    if (!t || t.style.display === 'none') return;
+    const pad = 14, w = t.offsetWidth || 200, h = t.offsetHeight || 80;
+    let x = e.clientX + pad, y = e.clientY + pad;
+    if (x + w > window.innerWidth - 8) x = e.clientX - w - pad;
+    if (y + h > window.innerHeight - 8) y = window.innerHeight - h - 8;
+    if (y < 8) y = 8;
+    t.style.left = x + 'px';
+    t.style.top = y + 'px';
+  };
+  document.addEventListener('mouseover', (e) => {
+    if (!e.target.closest) return;
+    const inCol = e.target.closest('.rotation-tracker-col');
+    const tip = inCol && e.target.closest('.credit-tip');
+    const t = ensureTip();
+    if (tip) {
+      const pop = tip.querySelector(':scope > .credit-pop');
+      if (pop) { t.innerHTML = pop.innerHTML; t.style.display = 'block'; position(e); return; }
+    }
+    if (!inCol || !tip) t.style.display = 'none';
+  });
+  document.addEventListener('mousemove', position);
+})();
+
 function getFilteredLessonsForWeek(state) {
   const weekStr = state.selectedWeek;
   return (state.lessons || []).filter(l => l.week === weekStr);
@@ -8500,6 +8818,10 @@ function getLessonConflictReason(lesson, state) {
   const shiftStart = shift.startTime ? timeToMinutes(shift.startTime) : 0;
   const shiftEnd = shift.endTime ? timeToMinutes(shift.endTime) : 0;
   if (startMin < shiftStart || endMin > shiftEnd) return "Lesson is outside the guard's shift hours";
+
+  // Custom conflict — only while on shift and overlapping the lesson time.
+  const cc = guardCustomConflict(gId, currentDay, w, state.customConflicts, shift, startMin, endMin);
+  if (cc) return `Guard is unavailable (${cc.title || 'custom conflict'})`;
 
   // 2. Lesson overlap check
   const other = (state.lessons || []).find(l => {
@@ -8711,6 +9033,10 @@ function render() {
   const calendarScrollLeft = calendarBody ? calendarBody.scrollLeft : 0;
   const windowScrollX = typeof window !== 'undefined' ? (window.scrollX || 0) : 0;
   const windowScrollY = typeof window !== 'undefined' ? (window.scrollY || 0) : 0;
+  // Preserve the daily tracker column's independent scroll across re-renders
+  // (e.g. assigning a guard shouldn't jump it back to the top).
+  const trackerCol = hasQuerySelector ? document.querySelector('.rotation-tracker-col') : null;
+  const trackerScrollTop = trackerCol ? trackerCol.scrollTop : 0;
 
   // On a reference schedule selectedWeek is a sentinel (not a date) — keep the
   // last real week's date so date-based UI stays sane. References are
@@ -8770,6 +9096,8 @@ function render() {
     newCalendarBody.scrollTop = calendarScrollTop;
     newCalendarBody.scrollLeft = calendarScrollLeft;
   }
+  const newTrackerCol = hasQuerySelector ? document.querySelector('.rotation-tracker-col') : null;
+  if (newTrackerCol && trackerScrollTop) newTrackerCol.scrollTop = trackerScrollTop;
 }
 
 async function handleRouting() {
@@ -9461,9 +9789,14 @@ function renderGuardRow(guard, days, state) {
           
           const sStart = timeToMinutes(shift.startTime);
           const sEnd = timeToMinutes(shift.endTime);
-          
-          const isOpener = sStart < openEndMin && sEnd > openStartMin;
-          const isCloser = sStart < closeEndMin && sEnd > closeStartMin;
+
+          // Overlap with the window; a zero-length window (start === end) is
+          // treated as that instant so a shift covering the moment still counts.
+          const inWin = (ws, we) => ws === we
+            ? (sStart <= ws && sEnd >= ws)
+            : (sStart < we && sEnd > ws);
+          const isOpener = inWin(openStartMin, openEndMin);
+          const isCloser = inWin(closeStartMin, closeEndMin);
 
           if (!isReadOnly && isOpener) {
             openerIndicator = `<span style="position: absolute; top: 6px; left: 6px; width: 8px; height: 8px; border-radius: 50%; background-color: var(--am-300); border: 1px solid rgba(230, 168, 23, 0.3); box-shadow: 0 0 2px var(--am-300);" title="Opening Shift"></span>`;
@@ -9592,22 +9925,21 @@ function renderRotationTab(state) {
               </div>
               <div class="manual-mode-container" style="display:flex; align-items:center; gap:6px; margin-left: 15px; background: rgba(255,255,255,0.03); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle);">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-primary); cursor: pointer; user-select: none; margin: 0;">
-                  <input type="checkbox" id="rotation-manual-mode" ${state.manualMode ? 'checked' : ''} 
+                  <input type="checkbox" id="rotation-manual-mode" ${state.manualMode ? 'checked' : ''}
                          onchange="window.__setManualMode(this.checked)" />
                   Ignore Conflicts
                 </label>
               </div>
+              <button class="btn btn-secondary btn-sm" onclick="window.__showConflictsModal()" title="Add or manage custom guard conflicts (days off, appointments, etc.)" style="margin-left: 8px;">🚫 Add Conflict</button>
             </div>
             <div class="flex gap-2" style="flex-wrap: wrap;">
-              <button class="btn btn-secondary btn-sm" id="generate-blocks-btn" title="Generate time blocks from shifts">
-                ⏱ Generate Blocks
-              </button>
-              <button class="btn btn-danger btn-sm" id="delete-blocks-btn" title="Delete all rotation blocks for today">
-                🗑 Delete Blocks
-              </button>
-              <button class="btn btn-primary btn-sm" id="auto-assign-btn" title="Auto-assign guards to positions">
-                ⚡ Auto Assign
-              </button>
+              ${blocks.length === 0
+                ? `<button class="btn btn-secondary btn-sm" id="generate-blocks-btn" title="Generate time blocks from shifts">⏱ Generate Blocks</button>`
+                : `<button class="btn btn-danger btn-sm" id="delete-blocks-btn" title="Delete all rotation blocks for today">🗑 Delete Blocks</button>`}
+              <div class="auto-assign-group">
+                <button class="btn btn-primary btn-sm" id="auto-assign-btn" title="Auto-assign guards to positions">⚡ Auto Assign</button>
+                <button class="btn btn-primary btn-sm aa-gear" onclick="window.__openAutoAssignMenu(event)" title="Choose guards to exclude from Auto Assign">⚙️</button>
+              </div>
               <button class="btn btn-secondary btn-sm" id="share-rotations-btn" title="Generate shareable URL link for rotations view">
                 🔗 Share Rotations
               </button>
@@ -9630,7 +9962,7 @@ function renderRotationTab(state) {
           </div>
         </div>
       </div>
-      <div class="tracker-panel">
+      <div class="tracker-panel rotation-tracker-col">
         ${renderDailyTracker(state)}
       </div>
     </div>
@@ -9852,6 +10184,32 @@ function shadowDoubleBookReason(mentorId, block, mentorPos, state) {
   return null;
 }
 
+// A shadow following a mentor into this slot has their OWN availability
+// conflict here (off shift, teaching, or a custom conflict) → flag the slot.
+function shadowConflictReason(mentorId, block, mentorPos, state) {
+  const day = state.selectedDay, week = state.selectedWeek;
+  const filteredLessons = getFilteredLessonsForWeek(state);
+  const bS = timeToMinutes(block.startTime), bE = timeToMinutes(block.endTime);
+  const ids = new Set();
+  const shadows = store.getShadows(day, week);
+  for (const sId of Object.keys(shadows)) {
+    if (String(shadows[sId]) !== String(mentorId)) continue;
+    const sh = store.getShift(sId, day, week);
+    if (sh && timeToMinutes(sh.startTime) <= bS && timeToMinutes(sh.endTime) >= bE) ids.add(String(sId));
+  }
+  store.getBlockShadows(block.id, mentorPos, week).forEach(id => ids.add(String(id)));
+  const bBefore = state.settings?.lessonBufferBeforeMinutes ?? 0;
+  const bAfter = state.settings?.lessonBufferAfterMinutes ?? 5;
+  for (const sId of ids) {
+    const name = store.getGuardById(sId)?.name || 'Shadow';
+    if (!isGuardAvailableForBlock(sId, block, state.shifts, day, week)) return `${name} is not on shift at this time`;
+    if (isGuardTeachingDuringBlock(sId, block, day, filteredLessons, bBefore, bAfter)) return `${name} is teaching a swim lesson at this time`;
+    const cc = guardCustomConflict(sId, day, week, state.customConflicts, store.getShift(sId, day, week), bS, bE);
+    if (cc) return `${name} is unavailable (${cc.title || 'custom conflict'})`;
+  }
+  return null;
+}
+
 function renderBlockAssignments(block, standCount, state) {
   const positions = getDisplayPositions(standCount, state.settings?.excludeDoor);
   const slots = positions.map(pos => {
@@ -9869,6 +10227,12 @@ function renderBlockAssignments(block, standCount, state) {
       if (!conflictReason) {
         const sdb = shadowDoubleBookReason(guardId, block, pos, state);
         if (sdb) conflictReason = sdb;
+      }
+      // Or if a shadow following here has their own conflict (off shift,
+      // teaching, or a custom conflict) during this block.
+      if (!conflictReason) {
+        const scr = shadowConflictReason(guardId, block, pos, state);
+        if (scr) conflictReason = scr;
       }
     }
     const conflictAttrs = conflictReason
@@ -10353,8 +10717,8 @@ function renderSettingsTab(state) {
   return `
     <div class="page-title">⚙️ Settings</div>
     <div class="settings-grid">
-      <div class="settings-section">
-        <div class="card">
+      <div class="settings-col">
+<div class="card">
           <div class="card-header"><h3>Rotation Configuration</h3></div>
           <div class="card-body">
             <div class="setting-item">
@@ -10415,59 +10779,99 @@ function renderSettingsTab(state) {
             </div>
           </div>
         </div>
-
-
-
-        <div class="card mt-4">
-          <div class="card-header"><h3>Default Shift Times</h3></div>
+<div class="card mt-4">
+          <div class="card-header"><h3>Swim Lessons Configuration</h3></div>
           <div class="card-body">
-            <div style="display: flex; font-weight: 600; margin-bottom: 12px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
-              <div style="flex: 0.8;">Day</div>
-              <div style="flex: 2.2; padding-left: 4px;">AM Crew</div>
-              <div style="flex: 2.2; padding-left: 4px;">PM Crew</div>
+            <div class="setting-item">
+              <label>Lessons Start Time</label>
+              <input type="time" class="form-input" value="${s.lessonsStartTime || '08:00'}"
+                     id="setting-lessons-start"
+                     onchange="window.__updateSetting('lessonsStartTime', this.value)" />
+              <span class="setting-description">Start hour boundary for the Swim Lessons calendar</span>
             </div>
-            <div class="default-shift-times-list">
-              ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
-                const amSetting = s.defaultShiftTimes && s.defaultShiftTimes.AM && s.defaultShiftTimes.AM[day]
-                  ? s.defaultShiftTimes.AM[day]
-                  : { startTime: '09:00', endTime: '17:00' };
-                const pmSetting = s.defaultShiftTimes && s.defaultShiftTimes.PM && s.defaultShiftTimes.PM[day]
-                  ? s.defaultShiftTimes.PM[day]
-                  : { startTime: '09:00', endTime: '17:00' };
-                return `
-                  <div class="default-shift-day-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; padding-bottom: 8px; border-bottom: ${day === 'Saturday' ? 'none' : '1px solid var(--border-subtle)'};">
-                    <div style="flex: 0.8; font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">${day.slice(0, 3)}</div>
-                    
-                    <div style="display: flex; align-items: center; gap: 4px; flex: 2.2;">
-                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                             value="${amSetting.startTime}" 
-                             onchange="window.__updateDefaultShiftTime('AM', '${day}', 'startTime', this.value)" />
-                      <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
-                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                             value="${amSetting.endTime}" 
-                             onchange="window.__updateDefaultShiftTime('AM', '${day}', 'endTime', this.value)" />
-                    </div>
 
-                    <div style="display: flex; align-items: center; gap: 4px; flex: 2.2;">
-                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                             value="${pmSetting.startTime}" 
-                             onchange="window.__updateDefaultShiftTime('PM', '${day}', 'startTime', this.value)" />
-                      <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
-                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                             value="${pmSetting.endTime}" 
-                             onchange="window.__updateDefaultShiftTime('PM', '${day}', 'endTime', this.value)" />
-                    </div>
-                  </div>
-                `;
-              }).join('')}
+            <div class="setting-item mt-4">
+              <label>Lessons End Time</label>
+              <input type="time" class="form-input" value="${s.lessonsEndTime || '18:00'}"
+                     id="setting-lessons-end"
+                     onchange="window.__updateSetting('lessonsEndTime', this.value)" />
+              <span class="setting-description">End hour boundary for the Swim Lessons calendar</span>
             </div>
-            </span>
+
+            <div class="setting-item mt-4">
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="setting-lessons-exclude-saturday" ${s.lessonsExcludeSaturday ? 'checked' : ''}
+                       onchange="window.__updateSetting('lessonsExcludeSaturday', this.checked)" />
+                Exclude Saturday
+              </label>
+              <span class="setting-description">Hide Saturday from the Swim Lessons calendar and stretch Monday–Friday</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Lessons Slot Height (px)</label>
+              <input type="number" class="form-input" value="${s.lessonsSlotHeight || 50}"
+                     min="30" max="150" step="5" id="setting-lessons-slot-height"
+                     onchange="window.__updateSetting('lessonsSlotHeight', parseInt(this.value))" />
+              <span class="setting-description">Vertical height of each 30-minute block on the calendar (30px–150px)</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Conflict Buffer Before Lessons (min)</label>
+              <input type="number" class="form-input" value="${s.lessonBufferBeforeMinutes ?? 0}"
+                     min="0" max="60" step="5" id="setting-lesson-buffer-before"
+                     onchange="window.__updateSetting('lessonBufferBeforeMinutes', Math.max(0, parseInt(this.value) || 0))" />
+              <span class="setting-description">Minutes before a lesson that a guard still can't be put on rotation</span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Conflict Buffer After Lessons (min)</label>
+              <input type="number" class="form-input" value="${s.lessonBufferAfterMinutes ?? 5}"
+                     min="0" max="60" step="5" id="setting-lesson-buffer-after"
+                     onchange="window.__updateSetting('lessonBufferAfterMinutes', Math.max(0, parseInt(this.value) || 0))" />
+              <span class="setting-description">Minutes after a lesson that a guard still can't be put on rotation (needed cooldown)</span>
+            </div>
+          </div>
+        </div>
+<div class="card mt-4">
+          <div class="card-header"><h3>TeamUp API Integration</h3></div>
+          <div class="card-body">
+            <div class="setting-item">
+              <label>Developer API Key (Teamup-Token)</label>
+              <input type="password" class="form-input" value="${escapeHtml(syncConfig.teamupApiKey || s.teamupApiKey || '')}"
+                     id="setting-teamup-api-key" placeholder="Enter your Teamup developer API key"
+                     onchange="window.__updateSyncConfig('teamupApiKey', this.value)" />
+              <span class="setting-description">Your TeamUp developer API key. Get one free at <a href="https://teamup.com/api-keys" target="_blank" style="color: var(--accent-primary);">teamup.com/api-keys</a></span>
+            </div>
+
+            <div class="setting-item mt-4">
+              <label>Calendar Key</label>
+              <input type="text" class="form-input" value="${escapeHtml(syncConfig.teamupCalendarKey || s.teamupCalendarKey || '')}"
+                     id="setting-teamup-calendar-key" placeholder="e.g. ks1234567890abcdef"
+                     onchange="window.__updateSyncConfig('teamupCalendarKey', this.value)" />
+              <span class="setting-description">The 18-character key from your TeamUp calendar URL (after teamup.com/)</span>
+            </div>
+
+            <div style="margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+              <strong style="color: var(--text-primary);">🔒 Security:</strong> Keys are stored locally in your browser and only sent directly to api.teamup.com over HTTPS.
+            </div>
+          </div>
+        </div>
+<div class="card mt-4">
+          <div class="card-header"><h3>Appearance</h3></div>
+          <div class="card-body">
+            <div class="setting-item">
+              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="setting-universal-emoji" ${isUniversalEmojiOn() ? 'checked' : ''}
+                       onchange="window.__toggleUniversalEmoji(this.checked)" />
+                Use universal emoji (this device only)
+              </label>
+              <span class="setting-description">Render icons with a built-in emoji font instead of the operating system's. Turn this on if emoji show up as boxes or look wrong (common on older systems like Windows 7).</span>
+            </div>
           </div>
         </div>
       </div>
-
-      <div class="settings-section">
-        <div class="card">
+      <div class="settings-col">
+<div class="card">
           <div class="card-header"><h3>Default Block Generation Windows</h3></div>
           <div class="card-body">
             <!-- Day selector tabs -->
@@ -10533,21 +10937,24 @@ function renderSettingsTab(state) {
                        ${activeWin.limitEnd ? '' : 'disabled'}
                        onchange="window.__updateBlockCreationWindowConfig('${activeDay}', 'endTime', this.value)" />
               </div>
+              <span class="setting-description" style="margin-top: 10px; display: block; font-size: 0.75rem; color: var(--text-tertiary);">
+                Restricts generated rotation blocks to these daily windows. If disabled, blocks are generated spanning the earliest shift start to the latest shift end.
+              </span>
             </div>
 
             <!-- Opening & Closing Shift Windows -->
             <div style="border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
               <h4 style="margin: 0 0 10px 0; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Opening & Closing Periods</h4>
-              
+
               <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
                 <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary);">Opening Window</span>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                         value="${activeWin.openingStart || '09:00'}" 
+                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;"
+                         value="${activeWin.openingStart || '09:00'}"
                          onchange="window.__updateBlockCreationWindowConfig('${activeDay}', 'openingStart', this.value)" />
                   <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
-                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                         value="${activeWin.openingEnd || '10:00'}" 
+                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;"
+                         value="${activeWin.openingEnd || '10:00'}"
                          onchange="window.__updateBlockCreationWindowConfig('${activeDay}', 'openingEnd', this.value)" />
                 </div>
               </div>
@@ -10555,12 +10962,12 @@ function renderSettingsTab(state) {
               <div style="display: flex; align-items: center; justify-content: space-between;">
                 <span style="font-size: 0.8rem; font-weight: 500; color: var(--text-primary);">Closing Window</span>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                         value="${activeWin.closingStart || '16:00'}" 
+                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;"
+                         value="${activeWin.closingStart || '16:00'}"
                          onchange="window.__updateBlockCreationWindowConfig('${activeDay}', 'closingStart', this.value)" />
                   <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
-                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
-                         value="${activeWin.closingEnd || '17:00'}" 
+                  <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;"
+                         value="${activeWin.closingEnd || '17:00'}"
                          onchange="window.__updateBlockCreationWindowConfig('${activeDay}', 'closingEnd', this.value)" />
                 </div>
               </div>
@@ -10592,13 +10999,13 @@ function renderSettingsTab(state) {
                     </div>
 
                     <label style="display: flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 500; cursor: pointer; user-select: none;"
-                           title="Align blocks to standard rotation interval boundaries (e.g. xx:00, xx:30). If unchecked, blocks increment directly from the start time.">
-                      <input type="checkbox" ${win.align ? 'checked' : ''} 
-                             onchange="window.__updateExtraBlockWindow('${activeDay}', ${idx}, 'align', this.checked)" />
-                      Align
+                           title="Generate this window as a single block, ignoring the rotation interval (e.g. 6:05–7:05 becomes one block).">
+                      <input type="checkbox" ${win.whole ? 'checked' : ''}
+                             onchange="window.__updateExtraBlockWindow('${activeDay}', ${idx}, 'whole', this.checked)" />
+                      Single block
                     </label>
 
-                    <button class="btn btn-danger btn-sm" style="padding: 2px 4px; line-height: 1; height: auto;" 
+                    <button class="btn btn-danger btn-sm" style="padding: 2px 4px; line-height: 1; height: auto;"
                             onclick="window.__removeExtraBlockWindow('${activeDay}', ${idx})">
                       🗑
                     </button>
@@ -10692,80 +11099,55 @@ function renderSettingsTab(state) {
               </div>
             </div>
 
-            <span class="setting-description" style="margin-top: 12px; display: block; font-size: 0.75rem; color: var(--text-tertiary);">
-              Restricts generated rotation blocks to these daily windows. If disabled, blocks are generated spanning the earliest shift start to the latest shift end.
+          </div>
+        </div>
+<div class="card mt-4">
+          <div class="card-header"><h3>Default Shift Times</h3></div>
+          <div class="card-body">
+            <div style="display: flex; font-weight: 600; margin-bottom: 12px; font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border-subtle); padding-bottom: 6px;">
+              <div style="flex: 0.8;">Day</div>
+              <div style="flex: 2.2; padding-left: 4px;">AM Crew</div>
+              <div style="flex: 2.2; padding-left: 4px;">PM Crew</div>
+            </div>
+            <div class="default-shift-times-list">
+              ${['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map(day => {
+                const amSetting = s.defaultShiftTimes && s.defaultShiftTimes.AM && s.defaultShiftTimes.AM[day]
+                  ? s.defaultShiftTimes.AM[day]
+                  : { startTime: '09:00', endTime: '17:00' };
+                const pmSetting = s.defaultShiftTimes && s.defaultShiftTimes.PM && s.defaultShiftTimes.PM[day]
+                  ? s.defaultShiftTimes.PM[day]
+                  : { startTime: '09:00', endTime: '17:00' };
+                return `
+                  <div class="default-shift-day-row" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; gap: 8px; padding-bottom: 8px; border-bottom: ${day === 'Saturday' ? 'none' : '1px solid var(--border-subtle)'};">
+                    <div style="flex: 0.8; font-weight: 500; font-size: 0.85rem; color: var(--text-primary);">${day.slice(0, 3)}</div>
+                    
+                    <div style="display: flex; align-items: center; gap: 4px; flex: 2.2;">
+                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
+                             value="${amSetting.startTime}" 
+                             onchange="window.__updateDefaultShiftTime('AM', '${day}', 'startTime', this.value)" />
+                      <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
+                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
+                             value="${amSetting.endTime}" 
+                             onchange="window.__updateDefaultShiftTime('AM', '${day}', 'endTime', this.value)" />
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 4px; flex: 2.2;">
+                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
+                             value="${pmSetting.startTime}" 
+                             onchange="window.__updateDefaultShiftTime('PM', '${day}', 'startTime', this.value)" />
+                      <span style="font-size: 0.7rem; color: var(--text-tertiary);">-</span>
+                      <input type="time" class="form-input" style="padding: 2px 4px; font-size: 0.75rem; width: 95px; height: auto;" 
+                             value="${pmSetting.endTime}" 
+                             onchange="window.__updateDefaultShiftTime('PM', '${day}', 'endTime', this.value)" />
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
             </span>
           </div>
         </div>
-
-        <div class="card mt-4">
-          <div class="card-header"><h3>Data Management</h3></div>
-          <div class="card-body">
-            <div class="setting-item">
-              <label>Export Schedule</label>
-              <button class="btn btn-secondary" id="export-btn" onclick="window.__exportData()">
-                📥 Export as JSON
-              </button>
-              <span class="setting-description">Download your complete schedule as a JSON file</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label>Import Schedule</label>
-              <input type="file" accept=".json" id="import-input" class="form-input" style="padding:8px;" />
-              <span class="setting-description">Load a previously exported schedule file</span>
-            </div>
-
-
-
-            <div class="setting-item mt-4">
-              <label style="color: var(--status-red);">Danger Zone</label>
-              <button class="btn btn-danger" id="reset-btn" onclick="window.__resetAll()">
-                🗑 Reset All Data
-              </button>
-              <span class="setting-description">Permanently delete all guards, schedules, and rotations</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-4">
-          <div class="card-header"><h3>Swim Lessons Configuration</h3></div>
-          <div class="card-body">
-            <div class="setting-item">
-              <label>Lessons Start Time</label>
-              <input type="time" class="form-input" value="${s.lessonsStartTime || '08:00'}"
-                     id="setting-lessons-start"
-                     onchange="window.__updateSetting('lessonsStartTime', this.value)" />
-              <span class="setting-description">Start hour boundary for the Swim Lessons calendar</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label>Lessons End Time</label>
-              <input type="time" class="form-input" value="${s.lessonsEndTime || '18:00'}"
-                     id="setting-lessons-end"
-                     onchange="window.__updateSetting('lessonsEndTime', this.value)" />
-              <span class="setting-description">End hour boundary for the Swim Lessons calendar</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
-                <input type="checkbox" id="setting-lessons-exclude-saturday" ${s.lessonsExcludeSaturday ? 'checked' : ''}
-                       onchange="window.__updateSetting('lessonsExcludeSaturday', this.checked)" />
-                Exclude Saturday
-              </label>
-              <span class="setting-description">Hide Saturday from the Swim Lessons calendar and stretch Monday–Friday</span>
-            </div>
-
-            <div class="setting-item mt-4">
-              <label>Lessons Slot Height (px)</label>
-              <input type="number" class="form-input" value="${s.lessonsSlotHeight || 50}"
-                     min="30" max="150" step="5" id="setting-lessons-slot-height"
-                     onchange="window.__updateSetting('lessonsSlotHeight', parseInt(this.value))" />
-              <span class="setting-description">Vertical height of each 30-minute block on the calendar (30px–150px)</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="card mt-4">
+<div class="card mt-4">
           <div class="card-header">
             <h3>☁️ Cloud Sync (Multi-Device Sync)</h3>
           </div>
@@ -10875,46 +11257,34 @@ function renderSettingsTab(state) {
             </div>
           </div>
         </div>
-
-        <div class="card mt-4">
-          <div class="card-header"><h3>TeamUp API Integration</h3></div>
+<div class="card mt-4">
+          <div class="card-header"><h3>Data Management</h3></div>
           <div class="card-body">
             <div class="setting-item">
-              <label>Developer API Key (Teamup-Token)</label>
-              <input type="password" class="form-input" value="${escapeHtml(syncConfig.teamupApiKey || s.teamupApiKey || '')}"
-                     id="setting-teamup-api-key" placeholder="Enter your Teamup developer API key"
-                     onchange="window.__updateSyncConfig('teamupApiKey', this.value)" />
-              <span class="setting-description">Your TeamUp developer API key. Get one free at <a href="https://teamup.com/api-keys" target="_blank" style="color: var(--accent-primary);">teamup.com/api-keys</a></span>
+              <label>Export Schedule</label>
+              <button class="btn btn-secondary" id="export-btn" onclick="window.__exportData()">
+                📥 Export as JSON
+              </button>
+              <span class="setting-description">Download your complete schedule as a JSON file</span>
             </div>
 
             <div class="setting-item mt-4">
-              <label>Calendar Key</label>
-              <input type="text" class="form-input" value="${escapeHtml(syncConfig.teamupCalendarKey || s.teamupCalendarKey || '')}"
-                     id="setting-teamup-calendar-key" placeholder="e.g. ks1234567890abcdef"
-                     onchange="window.__updateSyncConfig('teamupCalendarKey', this.value)" />
-              <span class="setting-description">The 18-character key from your TeamUp calendar URL (after teamup.com/)</span>
+              <label>Import Schedule</label>
+              <input type="file" accept=".json" id="import-input" class="form-input" style="padding:8px;" />
+              <span class="setting-description">Load a previously exported schedule file</span>
             </div>
 
-            <div style="margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
-              <strong style="color: var(--text-primary);">🔒 Security:</strong> Keys are stored locally in your browser and only sent directly to api.teamup.com over HTTPS.
-            </div>
-          </div>
-        </div>
 
-        <div class="card mt-4">
-          <div class="card-header"><h3>Appearance</h3></div>
-          <div class="card-body">
-            <div class="setting-item">
-              <label style="display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; user-select: none;">
-                <input type="checkbox" id="setting-universal-emoji" ${isUniversalEmojiOn() ? 'checked' : ''}
-                       onchange="window.__toggleUniversalEmoji(this.checked)" />
-                Use universal emoji (this device only)
-              </label>
-              <span class="setting-description">Render icons with a built-in emoji font instead of the operating system's. Turn this on if emoji show up as boxes or look wrong (common on older systems like Windows 7).</span>
+
+            <div class="setting-item mt-4">
+              <label style="color: var(--status-red);">Danger Zone</label>
+              <button class="btn btn-danger" id="reset-btn" onclick="window.__resetAll()">
+                🗑 Reset All Data
+              </button>
+              <span class="setting-description">Permanently delete all guards, schedules, and rotations</span>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   `;
@@ -10996,7 +11366,6 @@ function showShiftModal(guardId, day) {
                 `;
               }).join('')}
             </div>
-            <button class="btn btn-secondary btn-sm" id="modal-copy-to-btn" style="padding: var(--space-1) var(--space-3); font-size: var(--font-xs);">Copy to</button>
           </div>
         </div>
       </div>
@@ -11066,48 +11435,6 @@ function showShiftModal(guardId, day) {
     }
     overlay.remove();
   });
-
-  // Copy to button
-  const copyToBtn = document.getElementById('modal-copy-to-btn');
-  if (copyToBtn) {
-    copyToBtn.addEventListener('click', () => {
-      const st = document.getElementById('modal-start-time').value;
-      const et = document.getElementById('modal-end-time').value;
-      const bm = parseInt(document.getElementById('modal-break-minutes').value) || 0;
-
-      if (!st || !et) {
-        showToast('Please enter start and end times', 'warning');
-        return;
-      }
-
-      const selectedBubbles = overlay.querySelectorAll('.day-bubble.selected');
-      if (selectedBubbles.length === 0) {
-        showToast('Please select at least one day to copy to', 'warning');
-        return;
-      }
-
-      const selectedDays = Array.from(selectedBubbles).map(b => b.dataset.day);
-
-      // Save current day
-      store.setShiftEntry(guardId, day, {
-        startTime: st,
-        endTime: et,
-        breakMinutes: bm
-      });
-
-      // Copy and overwrite selected days
-      selectedDays.forEach(selectedDay => {
-        store.setShiftEntry(guardId, selectedDay, {
-          startTime: st,
-          endTime: et,
-          breakMinutes: bm
-        });
-      });
-
-      showToast(`Shift copied to ${selectedDays.join(', ')}`, 'success');
-      overlay.remove();
-    });
-  }
 
   // Clear
   const clearBtn = document.getElementById('modal-clear-btn');
@@ -11473,6 +11800,201 @@ window.__showSlotConflictTip = (event, el) => {
   window.__moveLessonTip(event);
 };
 
+// Styled hover tip for a "teaching" conflict badge in the guard selector: shows
+// the guard's lesson(s) overlapping this block with time and details.
+window.__showTeachingTip = (event, guardId, blockId) => {
+  const state = store.getState();
+  const day = state.selectedDay;
+  const block = store.getBlocksForDay(day).find(b => b.id === blockId);
+  if (!block) return;
+  const bStart = timeToMinutes(block.startTime), bEnd = timeToMinutes(block.endTime);
+  const guard = store.getGuardById(guardId);
+  const lessons = getFilteredLessonsForWeek(state).filter(l => {
+    if (l.day !== day || String(l.guardId) !== String(guardId)) return false;
+    const s = timeToMinutes(l.startTime), e = s + (parseInt(l.durationMinutes) || 0);
+    return bStart < e && bEnd > s;
+  });
+  if (!lessons.length) return;
+  const tip = ensureLessonTip();
+  tip.innerHTML = `<div class="lht-head"><span class="lht-dot" style="background:#f59e0b;"></span>${escapeHtml(guard ? guard.name : 'Guard')} · teaching</div>` +
+    lessons.map((l, i) => {
+      const s = timeToMinutes(l.startTime);
+      const endT = minutesToTime(s + (parseInt(l.durationMinutes) || 0));
+      return (i > 0 ? '<div style="height:6px;"></div>' : '') +
+        `<div class="lht-row">🕒 ${formatTime(l.startTime)} – ${formatTime(endT)} <span class="lht-dim">(${parseInt(l.durationMinutes) || 0}m)</span></div>` +
+        (l.subject ? `<div class="lht-row">🏷️ ${escapeHtml(l.subject)}</div>` : '') +
+        (l.notes ? `<div class="lht-row">📝 ${escapeHtml(l.notes)}</div>` : '');
+    }).join('');
+  tip.style.display = 'block';
+  window.__moveLessonTip(event);
+};
+
+// ─── Auto-assign exclusions menu ────────────────────────────
+window.__toggleAutoAssignExclusion = (guardId) => {
+  store.toggleAutoAssignExclusion(guardId);
+};
+
+window.__openAutoAssignMenu = (event) => {
+  event.stopPropagation();
+  document.querySelectorAll('.autoassign-menu').forEach(m => m.remove());
+  const state = store.getState();
+  const excluded = new Set((store.getAutoAssignExclusions() || []).map(String));
+  const guards = [...state.guards].sort((a, b) => a.name.localeCompare(b.name));
+  const menu = document.createElement('div');
+  menu.className = 'ref-save-menu autoassign-menu';
+  const rect = event.currentTarget.getBoundingClientRect();
+  const top = Math.min(rect.bottom + 4, window.innerHeight - 340);
+  const left = Math.min(rect.left, window.innerWidth - 250);
+  menu.style.cssText = `position:fixed; top:${top}px; left:${left}px; z-index:1200;`;
+  menu.innerHTML = `<div class="ref-save-title">Exclude from Auto Assign</div>` +
+    (guards.length
+      ? guards.map(g => `<label class="aa-item"><input type="checkbox" ${excluded.has(String(g.id)) ? 'checked' : ''} onchange="window.__toggleAutoAssignExclusion('${g.id}')" /><span>${escapeHtml(g.name)}</span></label>`).join('')
+      : `<div class="ref-save-item" style="opacity:0.6; cursor:default;">No guards in roster</div>`);
+  document.body.appendChild(menu);
+  setTimeout(() => {
+    const close = (e) => { if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', close); } };
+    document.addEventListener('click', close);
+  }, 0);
+};
+
+// ─── Custom conflicts modal ─────────────────────────────────
+function conflictDayBubblesHtml() {
+  const dayChars = { Monday: 'M', Tuesday: 'T', Wednesday: 'W', Thursday: 'TH', Friday: 'F', Saturday: 'S' };
+  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const idx = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5 };
+  const mkRow = (weekStart) => days.map(d => {
+    const dt = new Date(weekStart); dt.setDate(weekStart.getDate() + idx[d]);
+    const iso = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+    return `<button type="button" class="conflict-day-bubble" data-day="${d}" data-date="${iso}" onclick="this.classList.toggle('selected')">${dayChars[d]} (${dt.getDate()})</button>`;
+  }).join('');
+  const nextWeek = new Date(currentWeekStart); nextWeek.setDate(currentWeekStart.getDate() + 7);
+  return { thisRow: mkRow(currentWeekStart), nextRow: mkRow(nextWeek) };
+}
+
+window.__renderConflictList = () => {
+  const el = document.getElementById('cc-list');
+  if (!el) return;
+  const list = store.getCustomConflicts();
+  if (!list.length) { el.innerHTML = `<div class="text-xs text-tertiary" style="padding:8px 0;">No custom conflicts yet.</div>`; return; }
+  el.innerHTML = list.map(c => {
+    const g = store.getGuardById(c.guardId);
+    const daysLabel = c.persistent
+      ? [...new Set((c.days || []).map(d => d.day))].map(d => d.slice(0, 3)).join(', ')
+      : (c.days || []).map(d => { const dt = new Date(d.date + 'T00:00:00'); return `${d.day.slice(0, 3)} ${dt.getMonth() + 1}/${dt.getDate()}`; }).join(', ');
+    const timeLabel = (c.startTime && c.endTime) ? `${formatTime(c.startTime)} – ${formatTime(c.endTime)}` : 'All shift';
+    return `<div class="cc-item">
+      <div style="min-width:0;">
+        <div class="cc-item-title">${escapeHtml(c.title || 'Untitled')}${c.persistent ? ' <span class="cc-badge">↻ persistent</span>' : ''}</div>
+        <div class="cc-item-sub">${escapeHtml(g ? g.name : 'Unknown guard')} · ${escapeHtml(daysLabel || 'no dates')} · ${escapeHtml(timeLabel)}</div>
+      </div>
+      <button class="btn btn-ghost btn-icon btn-sm" title="Delete conflict" onclick="window.__deleteCustomConflict('${c.id}')" style="color:var(--status-red);">🗑️</button>
+    </div>`;
+  }).join('');
+};
+
+window.__addCustomConflictFromModal = () => {
+  const titleEl = document.getElementById('cc-title');
+  const guardId = document.getElementById('cc-guard').value;
+  const persistent = document.getElementById('cc-persistent').checked;
+  const startTime = document.getElementById('cc-start').value;
+  const endTime = document.getElementById('cc-end').value;
+  const bubbles = [...document.querySelectorAll('#conflicts-modal-overlay .conflict-day-bubble.selected')];
+  if (!guardId) { showToast('Select a guard for the conflict.', 'warning'); return; }
+  if (!bubbles.length) { showToast('Select at least one day.', 'warning'); return; }
+  if ((startTime && !endTime) || (!startTime && endTime)) { showToast('Enter both a start and end time, or leave both blank.', 'warning'); return; }
+  if (startTime && endTime && timeToMinutes(endTime) <= timeToMinutes(startTime)) { showToast('End time must be after start time.', 'warning'); return; }
+  const days = bubbles.map(b => ({ day: b.dataset.day, date: b.dataset.date }));
+  const timeFields = (startTime && endTime) ? { startTime, endTime } : {};
+  store.addCustomConflict({ title: (titleEl.value || '').trim() || 'Conflict', guardId, persistent, days, ...timeFields });
+  showToast('Conflict added.', 'success');
+  titleEl.value = '';
+  document.getElementById('cc-persistent').checked = false;
+  document.getElementById('cc-start').value = '';
+  document.getElementById('cc-end').value = '';
+  bubbles.forEach(b => b.classList.remove('selected'));
+  window.__renderConflictList();
+};
+
+window.__deleteCustomConflict = (id) => {
+  store.deleteCustomConflict(id);
+  window.__renderConflictList();
+};
+
+// Persistent conflicts repeat by weekday, so the specific Next Week dates are
+// irrelevant — grey them out (and clear any selection) while persistent is on.
+window.__onConflictPersistentToggle = (checked) => {
+  const row = document.getElementById('cc-next-week-row');
+  if (!row) return;
+  row.classList.toggle('cc-disabled', checked);
+  if (checked) row.querySelectorAll('.conflict-day-bubble.selected').forEach(b => b.classList.remove('selected'));
+};
+
+window.__showConflictsModal = () => {
+  const state = store.getState();
+  const guards = [...state.guards].sort((a, b) => a.name.localeCompare(b.name));
+  const { thisRow, nextRow } = conflictDayBubblesHtml();
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.id = 'conflicts-modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <div class="modal-header">
+        <h3>🚫 Custom Conflicts</h3>
+        <button class="btn btn-ghost btn-icon" onclick="this.closest('.modal-overlay').remove()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Conflict Title</label>
+          <input type="text" class="form-input" id="cc-title" placeholder="e.g. Lunch, Break" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Guard</label>
+          <select class="form-input" id="cc-guard">
+            <option value="">Select guard…</option>
+            ${guards.map(g => `<option value="${g.id}">${escapeHtml(g.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Time <span style="font-weight:400; color:var(--text-tertiary);">(optional — leave blank for the whole shift)</span></label>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="time" class="form-input" id="cc-start" style="max-width:150px;" />
+            <span style="color:var(--text-tertiary);">–</span>
+            <input type="time" class="form-input" id="cc-end" style="max-width:150px;" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dates</label>
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+            <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); width:80px; flex-shrink:0;">This Week:</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">${thisRow}</div>
+          </div>
+          <div id="cc-next-week-row" style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.75rem; font-weight:600; color:var(--text-secondary); width:80px; flex-shrink:0;">Next Week:</span>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">${nextRow}</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none; font-size:0.85rem; font-weight:500;">
+            <input type="checkbox" id="cc-persistent" onchange="window.__onConflictPersistentToggle(this.checked)" />
+            Persistent — repeats on the selected weekday(s) every week
+          </label>
+        </div>
+        <div style="display:flex; justify-content:flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="window.__addCustomConflictFromModal()">＋ Add Conflict</button>
+        </div>
+        <div style="border-top:1px solid var(--border-subtle); margin-top:14px; padding-top:12px;">
+          <label class="form-label" style="text-transform:uppercase; letter-spacing:0.05em; font-size:0.72rem; color:var(--text-secondary);">Existing Conflicts</label>
+          <div id="cc-list"></div>
+        </div>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  enhanceTimeInputs(overlay);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  window.__renderConflictList();
+};
+
 function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTime = null) {
   const state = store.getState();
   const guards = state.guards;
@@ -11723,6 +12245,12 @@ function showLessonModal(lessonToEditId = null, prefilledDay = null, prefilledTi
     const shiftEnd = shift.endTime ? timeToMinutes(shift.endTime) : 0;
     if (startMin < shiftStart || endMin > shiftEnd) {
       return { hasConflict: true, reason: 'exceeds shift' };
+    }
+
+    // Custom conflict — only while on shift and overlapping the lesson time.
+    const cc = guardCustomConflict(gId, currentDay, w, state.customConflicts, shift, startMin, endMin);
+    if (cc) {
+      return { hasConflict: true, reason: cc.title || 'unavailable' };
     }
 
     // 2. Lesson overlap check
@@ -12447,6 +12975,21 @@ window.__enterBlockShadowMode = (event, blockId, position) => {
   if (anchor) openAssignmentDropdown(anchor, blockId, position, true);
 };
 
+// Guard-selector sort state (persists across dropdown re-opens).
+let assignSortCol = 'shift';   // 'shift' | 'cooldown'
+let assignSortDir = 1;          // 1 = ascending (earliest / least), -1 = descending
+let assignDropdownCtx = null;   // { blockId, position } of the open dropdown
+
+// Toggle/set the guard-selector sort column, then re-open the dropdown in place.
+window.__setAssignSort = (col) => {
+  if (assignSortCol === col) assignSortDir *= -1;
+  else { assignSortCol = col; assignSortDir = (col === 'percent') ? -1 : 1; }
+  if (assignDropdownCtx) {
+    const el = document.getElementById(`slot-${assignDropdownCtx.blockId}-${assignDropdownCtx.position}`);
+    if (el) openAssignmentDropdown(el, assignDropdownCtx.blockId, assignDropdownCtx.position, false);
+  }
+};
+
 function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
   // Hide the conflict hover tip so it doesn't linger over the open dropdown.
   window.__hideLessonTip();
@@ -12463,6 +13006,7 @@ function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
   const currentAssignedGuardId = store.getAssignment(blockId, position, state.selectedWeek);
   // Shadow mode only makes sense when a mentor is assigned to this slot.
   if (shadowMode && !currentAssignedGuardId) shadowMode = false;
+  assignDropdownCtx = { blockId, position };
   
   // Get guards for the day (filtering by crew if not Both)
   const crew = state.selectedCrew === 'Both' ? null : state.selectedCrew;
@@ -12500,13 +13044,21 @@ function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
   const guardsWithConflict = guards.map(g => {
     let hasConflict = false;
     let reason = '';
+    let conflictType = null;
 
-    if (!isGuardAvailableForBlock(g.id, block, state.shifts, day, state.selectedWeek)) {
+    const cc = guardCustomConflict(g.id, day, state.selectedWeek, state.customConflicts, store.getShift(g.id, day, state.selectedWeek), timeToMinutes(block.startTime), timeToMinutes(block.endTime));
+    if (cc) {
+      hasConflict = true;
+      reason = cc.title || 'unavailable';
+      conflictType = 'custom';
+    } else if (!isGuardAvailableForBlock(g.id, block, state.shifts, day, state.selectedWeek)) {
       hasConflict = true;
       reason = 'not on shift';
-    } else if (isGuardTeachingDuringBlock(g.id, block, day, filteredLessons)) {
+      conflictType = 'shift';
+    } else if (isGuardTeachingDuringBlock(g.id, block, day, filteredLessons, state.settings?.lessonBufferBeforeMinutes ?? 0, state.settings?.lessonBufferAfterMinutes ?? 5)) {
       hasConflict = true;
       reason = 'teaching';
+      conflictType = 'teaching';
     } else {
       let assignedOtherPos = false;
       for (const [key, gId] of Object.entries(state.blockAssignments)) {
@@ -12521,17 +13073,57 @@ function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
       if (assignedOtherPos) {
         hasConflict = true;
         reason = 'assigned';
+        conflictType = 'assigned';
       }
     }
 
     const isCurrent = g.id === currentAssignedGuardId;
-    return { g, hasConflict, reason, isCurrent };
+    return { g, hasConflict, reason, isCurrent, conflictType };
   });
 
-  // Sort guards with no conflicts to the top, sorting alphabetically within groups
+  // Daily-tracker % colour: each guard's stand-time % vs the day average (across
+  // everyone working that day), matching the Tracker's traffic-light logic.
+  const trackerCrew = state.selectedCrew === 'Both' ? null : state.selectedCrew;
+  const dayGuards = store.getGuardsWorkingDay(day, trackerCrew, state.selectedWeek);
+  let dayAvg = 0;
+  if (dayGuards.length) {
+    dayAvg = dayGuards.reduce((s, g) => s + (calcGuardStandTime(g.id, day, state.blockAssignments, blocks, state.shifts, state.settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows).percentage || 0), 0) / dayGuards.length;
+  }
+  // Enrich each entry with its shift, cooldown, and stand-time % + status colour.
+  guardsWithConflict.forEach(e => {
+    e.shift = store.getShift(e.g.id, day, state.selectedWeek);
+    e.cooldown = getTimeSinceLastStandOrLesson(e.g.id, block, state); // minutes, or null
+    const st = calcGuardStandTime(e.g.id, day, state.blockAssignments, blocks, state.shifts, state.settings, filteredLessons, state.selectedWeek, state.shadows, state.blockShadows);
+    e.pct = st.shiftDurationMinutes > 0 ? st.percentage : null;
+    e.status = e.pct == null ? null : getStandTimeStatus(e.pct, dayAvg);
+  });
+  // Conflicts sink to the bottom in a fixed order: teaching, not on shift,
+  // then assigned-elsewhere / current. Eligible guards sort by the active column.
+  const rankOf = (e) => {
+    if (!e.hasConflict && !e.isCurrent) return 0;
+    if (e.conflictType === 'teaching') return 1;
+    if (e.conflictType === 'custom') return 2;
+    if (e.conflictType === 'shift') return 3;
+    return 4; // assigned elsewhere or currently in this slot
+  };
   guardsWithConflict.sort((a, b) => {
-    if (!a.hasConflict && b.hasConflict) return -1;
-    if (a.hasConflict && !b.hasConflict) return 1;
+    const ra = rankOf(a), rb = rankOf(b);
+    if (ra !== rb) return ra - rb;
+    if (ra === 0) {
+      if (assignSortCol === 'cooldown') {
+        const av = a.cooldown == null ? Infinity : a.cooldown;
+        const bv = b.cooldown == null ? Infinity : b.cooldown;
+        if (av !== bv) return (av - bv) * assignSortDir;
+      } else if (assignSortCol === 'percent') {
+        const av = a.pct == null ? -Infinity : a.pct;
+        const bv = b.pct == null ? -Infinity : b.pct;
+        if (av !== bv) return (av - bv) * assignSortDir;
+      } else {
+        const av = a.shift ? timeToMinutes(a.shift.startTime) : Infinity;
+        const bv = b.shift ? timeToMinutes(b.shift.startTime) : Infinity;
+        if (av !== bv) return (av - bv) * assignSortDir;
+      }
+    }
     return a.g.name.localeCompare(b.g.name);
   });
 
@@ -12552,56 +13144,41 @@ function openAssignmentDropdown(anchorEl, blockId, position, shadowMode) {
       }
     });
   } else {
-  guardsWithConflict.forEach(({ g, hasConflict, reason, isCurrent }) => {
-    const shift = store.getShift(g.id, day, state.selectedWeek);
-    const shiftStartHtml = shift ? `<span class="shift-start-badge">${formatTime(shift.startTime)}</span>` : '';
-    const leftContent = `<div style="display: flex; align-items: center; gap: 4px;">
-                           <span>${escapeHtml(g.name)}</span>
-                           ${shiftStartHtml}
-                         </div>`;
-
-
-    let timeSinceHtml = '';
-    const isAvailable = !hasConflict && !isCurrent;
-    if (isAvailable) {
-      const minutesSince = getTimeSinceLastStandOrLesson(g.id, block, state);
-      if (minutesSince !== null) {
-        timeSinceHtml = `<span class="time-since-indicator">🧊⏱️ ${formatMinutesSince(minutesSince)}</span>`;
-      }
-    }
-
-    if (state.manualMode) {
-      if (isCurrent) {
-        html += `<div class="assignment-option ineligible" onclick="event.stopPropagation()">
-                   ${leftContent}
-                   <span class="reason-label">current</span>
-                 </div>`;
-      } else if (hasConflict) {
-        html += `<div class="assignment-option conflict" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)" style="display: flex; justify-content: space-between; align-items: center;">
-                   ${leftContent}
-                   <span class="reason-label" style="font-size: 0.65rem; color: var(--status-amber); background: var(--status-amber-bg); padding: 2px 6px; border-radius: 12px; margin-left: 8px;">${reason}</span>
-                 </div>`;
+    // Spreadsheet-style table with sortable Shift and Cooldown/Conflict columns.
+    const arrow = (col) => assignSortCol === col ? (assignSortDir === 1 ? ' ▲' : ' ▼') : '';
+    html += `<div class="assign-table">
+      <div class="assign-row assign-head">
+        <div class="assign-cell assign-shift sortable" onclick="event.stopPropagation(); window.__setAssignSort('shift')" title="Sort by shift — earliest ⇄ latest that still covers this block">Shift${arrow('shift')}</div>
+        <div class="assign-cell assign-guard sortable" onclick="event.stopPropagation(); window.__setAssignSort('percent')" title="Sort by stand-time % — highest ⇄ lowest">Guard${arrow('percent')}</div>
+        <div class="assign-cell assign-meta sortable" onclick="event.stopPropagation(); window.__setAssignSort('cooldown')" title="Sort by time since last stand/lesson — least ⇄ most">🧊⏱️${arrow('cooldown')}</div>
+      </div>`;
+    guardsWithConflict.forEach(({ g, hasConflict, reason, isCurrent, shift, cooldown, status, conflictType }) => {
+      const shiftStr = shift ? `${formatTime(shift.startTime)}-${formatTime(shift.endTime)}`.replace(/ /g, '') : '—';
+      const eligible = !hasConflict && !isCurrent;
+      const clickable = !isCurrent && (eligible || state.manualMode);
+      let meta;
+      if (eligible) {
+        meta = `<span class="cooldown">${cooldown == null ? '—' : '🧊 ' + formatMinutesSince(cooldown)}</span>`;
+      } else if (conflictType === 'teaching' && !isCurrent) {
+        // Hoverable: shows the guard's overlapping lesson time + details.
+        meta = `<span class="assign-reason r-teaching" onmouseenter="window.__showTeachingTip(event, '${g.id}', '${blockId}')" onmousemove="window.__moveLessonTip(event)" onmouseleave="window.__hideLessonTip()">teaching</span>`;
       } else {
-        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">
-                   ${leftContent}
-                   ${timeSinceHtml}
-                 </div>`;
+        const label = isCurrent ? 'current' : reason;
+        const rc = isCurrent ? 'current' : ({ shift: 'not-on-shift', custom: 'custom', assigned: 'assigned' }[conflictType] || 'assigned');
+        meta = `<span class="assign-reason r-${rc}">${escapeHtml(label)}</span>`;
       }
-    } else {
-      if (isAvailable) {
-        html += `<div class="assignment-option" onclick="window.__assignGuard('${blockId}', '${position}', '${g.id}', event)">
-                   ${leftContent}
-                   ${timeSinceHtml}
-                 </div>`;
-      } else {
-        const displayReason = isCurrent ? 'current' : reason;
-        html += `<div class="assignment-option ineligible" onclick="event.stopPropagation()">
-                   ${leftContent}
-                   <span class="reason-label">${displayReason}</span>
-                 </div>`;
-      }
-    }
-  });
+      const cls = `assign-row${clickable ? '' : ' ineligible'}${hasConflict ? ' conflict' : ''}`;
+      const onclick = clickable
+        ? `window.__assignGuard('${blockId}', '${position}', '${g.id}', event)`
+        : `event.stopPropagation()`;
+      const nameCls = `gname${status ? ' s-' + status : ''}`;
+      html += `<div class="${cls}" onclick="${onclick}">
+                 <div class="assign-cell assign-shift">${shiftStr}</div>
+                 <div class="assign-cell assign-guard"><span class="${nameCls}">${escapeHtml(g.name)}</span></div>
+                 <div class="assign-cell assign-meta">${meta}</div>
+               </div>`;
+    });
+    html += `</div>`;
   }
 
 
@@ -13578,8 +14155,12 @@ function canAssignGuardToBlockPos(guardId, block, position, state, excludingPos 
   if (!isGuardAvailableForBlock(guardId, block, state.shifts, day, state.selectedWeek)) {
     return { valid: false, reason: `${store.getGuardById(guardId)?.name || 'Guard'} is not on shift at this time` };
   }
-  if (isGuardTeachingDuringBlock(guardId, block, day, filteredLessons)) {
+  if (isGuardTeachingDuringBlock(guardId, block, day, filteredLessons, state.settings?.lessonBufferBeforeMinutes ?? 0, state.settings?.lessonBufferAfterMinutes ?? 5)) {
     return { valid: false, reason: `${store.getGuardById(guardId)?.name || 'Guard'} is teaching a swim lesson at this time` };
+  }
+  const cc = guardCustomConflict(guardId, day, state.selectedWeek, state.customConflicts, store.getShift(guardId, day, state.selectedWeek), timeToMinutes(block.startTime), timeToMinutes(block.endTime));
+  if (cc) {
+    return { valid: false, reason: `${store.getGuardById(guardId)?.name || 'Guard'} is unavailable (${cc.title || 'custom conflict'})` };
   }
   for (const [key, gId] of Object.entries(state.blockAssignments)) {
     if (key.startsWith(block.id + '-') && gId === guardId) {
@@ -14713,73 +15294,156 @@ window.exportSchedulePdf = async function() {
   }
 };
 
-// Renders the schedule notes (rich HTML) as an image at the bottom of the PDF,
-// preserving font size, color, and bold/italic/underline formatting.
+// Renders the schedule notes (rich HTML) as real, selectable PDF text below the
+// last table row — crisp at any zoom. Parses the contenteditable HTML into
+// visual lines of styled runs (bold / italic / underline / color / px size /
+// alignment), word-wraps to the usable width, and draws with jsPDF, paging as
+// needed. Inline px sizes are treated as pt 1:1, matching the on-screen preview.
 async function appendNotesToPdf(doc, margin) {
   const notesHtml = (store.getState().scheduleNotes || '').trim();
   if (!notesHtml) return;
 
-  // Skip if the notes contain no actual text/content.
-  const probe = document.createElement('div');
-  probe.innerHTML = notesHtml;
-  if (!probe.textContent.trim() && !probe.querySelector('img')) return;
-  if (typeof window.html2canvas !== 'function') return;
+  const container = document.createElement('div');
+  container.innerHTML = notesHtml;
+  if (!container.textContent.trim() && !container.querySelector('img')) return;
 
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const usableWidth = pageWidth - margin * 2;
+  const padL = 10, padR = 10, padTop = 4;
+  const maxWidth = usableWidth - padL - padR;
+  const BASE = 10.5, LF = 1.5;
+  const bottom = pageHeight - margin;
 
-  // Off-screen container sized to the PDF's usable width. Rendered at natural
-  // size, then captured by html2canvas at a high scale factor for crisp,
-  // non-pixelated text (html2canvas supersamples rather than upscaling).
-  const container = document.createElement('div');
-  container.style.cssText = `position:fixed; left:-10000px; top:0; width:${usableWidth}px; ` +
-    `padding:4px 10px 8px; background:#ffffff; color:#1e293b; ` +
-    `font-family:Inter, Arial, sans-serif; font-size:10.5px; line-height:1.5; ` +
-    `word-wrap:break-word; box-sizing:border-box;`;
-  container.innerHTML = notesHtml;
-  document.body.appendChild(container);
+  const parseColor = (c) => {
+    if (!c) return null;
+    c = String(c).trim();
+    if (c[0] === '#') {
+      let hex = c.slice(1);
+      if (hex.length === 3) hex = hex.split('').map(x => x + x).join('');
+      const n = parseInt(hex, 16);
+      if (isNaN(n)) return null;
+      return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    }
+    const m = c.match(/rgba?\(([^)]+)\)/);
+    if (m) { const p = m[1].split(',').map(v => parseFloat(v)); return [p[0] || 0, p[1] || 0, p[2] || 0]; }
+    const named = { black: [0, 0, 0], red: [220, 38, 38], blue: [37, 99, 235], green: [22, 163, 74], white: [255, 255, 255], gray: [100, 116, 139], grey: [100, 116, 139] };
+    return named[c.toLowerCase()] || null;
+  };
+  const sizeAttrToPt = (n) => ({ 1: 8, 2: 10, 3: 10.5, 4: 14, 5: 18, 6: 24, 7: 32 })[parseInt(n)] || BASE;
 
-  let canvas;
-  try {
-    const captureScale = Math.max(3, Math.ceil((window.devicePixelRatio || 1) * 2));
-    canvas = await window.html2canvas(container, { scale: captureScale, backgroundColor: '#ffffff', useCORS: true });
-  } catch (e) {
-    document.body.removeChild(container);
-    return;
-  }
-  document.body.removeChild(container);
+  const deriveCtx = (el, ctx) => {
+    const c = { ...ctx, color: ctx.color.slice() };
+    const tag = el.tagName.toLowerCase();
+    if (tag === 'b' || tag === 'strong') c.bold = true;
+    if (tag === 'i' || tag === 'em') c.italic = true;
+    if (tag === 'u' || tag === 'ins') c.underline = true;
+    const st = el.style || {};
+    const fw = st.fontWeight;
+    if (fw) { if (fw === 'bold' || fw === 'bolder' || parseInt(fw) >= 600) c.bold = true; else if (fw === 'normal' || (parseInt(fw) > 0 && parseInt(fw) < 600)) c.bold = false; }
+    if (st.fontStyle === 'italic') c.italic = true; else if (st.fontStyle === 'normal') c.italic = false;
+    if (/underline/.test(st.textDecorationLine || st.textDecoration || '')) c.underline = true;
+    if (tag === 'font') {
+      const col = el.getAttribute('color'); if (col) { const pc = parseColor(col); if (pc) c.color = pc; }
+      const sz = el.getAttribute('size'); if (sz) c.size = sizeAttrToPt(sz);
+    }
+    if (st.color) { const pc = parseColor(st.color); if (pc) c.color = pc; }
+    if (st.fontSize) { const px = parseFloat(st.fontSize); if (!isNaN(px)) c.size = px; }
+    const ta = st.textAlign || (el.getAttribute && el.getAttribute('align'));
+    if (ta === 'center' || ta === 'right' || ta === 'left') c.align = ta;
+    else if (ta === 'justify') c.align = 'left';
+    return c;
+  };
 
-  const pxPerPt = canvas.width / usableWidth;
+  // Flatten the HTML into visual lines, each with an alignment and styled runs.
+  const lines = [];
+  let current = null;
+  const newLine = (align) => { current = { align: align || 'left', runs: [] }; lines.push(current); };
+  const BLOCK = new Set(['div', 'p', 'li', 'ul', 'ol', 'h1', 'h2', 'h3', 'h4', 'blockquote', 'table', 'tr']);
+  const walk = (node, ctx) => {
+    node.childNodes.forEach(ch => {
+      if (ch.nodeType === 3) {
+        const t = ch.nodeValue.replace(/\s+/g, ' ');
+        if (!t) return;
+        if (!current) newLine(ctx.align);
+        current.runs.push({ text: t, bold: ctx.bold, italic: ctx.italic, underline: ctx.underline, color: ctx.color.slice(), size: ctx.size });
+      } else if (ch.nodeType === 1) {
+        const tag = ch.tagName.toLowerCase();
+        if (tag === 'br') { newLine(ctx.align); return; }
+        const nctx = deriveCtx(ch, ctx);
+        if (BLOCK.has(tag)) {
+          newLine(nctx.align);
+          walk(ch, nctx);
+          current = null;
+        } else {
+          if (!current) newLine(nctx.align);
+          walk(ch, nctx);
+        }
+      }
+    });
+  };
+  walk(container, { bold: false, italic: false, underline: false, color: [30, 41, 59], size: BASE, align: 'left' });
 
-  // Start the notes directly below the last table row (no heading).
-  let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 32) + 6;
-  if (y > pageHeight - margin - 40) { doc.addPage(); y = margin + 14; }
+  const styleStr = (r) => r.bold && r.italic ? 'bolditalic' : r.bold ? 'bold' : r.italic ? 'italic' : 'normal';
+  const measure = (text, r) => { doc.setFont('helvetica', styleStr(r)); doc.setFontSize(r.size); return doc.getTextWidth(text); };
 
-  // Draw the notes image, slicing across pages if it is taller than the page.
-  let remainingPx = canvas.height;
-  let srcY = 0;
-  while (remainingPx > 0) {
-    const availPt = pageHeight - margin - y;
-    const availPx = Math.max(0, Math.floor(availPt * pxPerPt));
-    if (availPx < 20) { doc.addPage(); y = margin + 10; continue; }
+  // Word-wrap one logical line's runs into visual sub-lines within maxWidth.
+  const wrapLine = (runs) => {
+    const tokens = [];
+    runs.forEach(r => {
+      r.text.split(/(\s+)/).forEach(part => { if (part !== '') tokens.push({ text: part, r, space: /^\s+$/.test(part) }); });
+    });
+    const out = [];
+    let cur = [], curW = 0;
+    tokens.forEach(tok => {
+      const w = measure(tok.text, tok.r);
+      if (tok.space && cur.length === 0) return; // drop leading space
+      if (!tok.space && curW + w > maxWidth && cur.length > 0) { out.push(cur); cur = []; curW = 0; }
+      cur.push({ ...tok, w });
+      curW += w;
+    });
+    if (cur.length) out.push(cur);
+    out.forEach(sl => { while (sl.length && sl[sl.length - 1].space) sl.pop(); });
+    return out;
+  };
 
-    const slicePx = Math.min(remainingPx, availPx);
-    const slice = document.createElement('canvas');
-    slice.width = canvas.width;
-    slice.height = slicePx;
-    const ctx = slice.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, slice.width, slice.height);
-    ctx.drawImage(canvas, 0, srcY, canvas.width, slicePx, 0, 0, canvas.width, slicePx);
+  let y = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 32) + 6 + padTop;
 
-    const sliceHeightPt = slicePx / pxPerPt;
-    doc.addImage(slice.toDataURL('image/png'), 'PNG', margin, y, usableWidth, sliceHeightPt);
+  const drawSubline = (sl, align) => {
+    const maxSize = Math.max(...sl.map(t => t.r.size));
+    const lineHeight = maxSize * LF;
+    if (y + lineHeight > bottom) { doc.addPage(); y = margin + padTop; }
+    const totalW = sl.reduce((s, t) => s + t.w, 0);
+    let cx = margin + padL;
+    if (align === 'center') cx += (maxWidth - totalW) / 2;
+    else if (align === 'right') cx += (maxWidth - totalW);
+    const baseline = y + maxSize * 0.95;
+    sl.forEach(tok => {
+      const r = tok.r;
+      doc.setFont('helvetica', styleStr(r));
+      doc.setFontSize(r.size);
+      doc.setTextColor(r.color[0], r.color[1], r.color[2]);
+      doc.text(tok.text, cx, baseline);
+      if (r.underline && !tok.space) {
+        const uy = baseline + r.size * 0.12;
+        doc.setDrawColor(r.color[0], r.color[1], r.color[2]);
+        doc.setLineWidth(Math.max(0.4, r.size * 0.045));
+        doc.line(cx, uy, cx + tok.w, uy);
+      }
+      cx += tok.w;
+    });
+    y += lineHeight;
+  };
 
-    srcY += slicePx;
-    remainingPx -= slicePx;
-    if (remainingPx > 0) { doc.addPage(); y = margin + 10; }
-  }
+  lines.forEach(line => {
+    const subs = wrapLine(line.runs);
+    if (subs.length === 0) {
+      if (y + BASE * LF > bottom) { doc.addPage(); y = margin + padTop; }
+      y += BASE * LF; // blank line
+      return;
+    }
+    subs.forEach(sl => drawSubline(sl, line.align));
+  });
 }
 
 // ════════════════════════════════════════════════════════════
@@ -15074,7 +15738,7 @@ function renderReadOnlyGuardTimeline(guardId, day, blocks, state) {
       statusLabel = getPositionLabel(assignedPos);
       statusDesc = isStandPosition(assignedPos) ? 'On active lifeguard stand duty' : 'On door / gate monitoring duty';
       badgeClass = isStandPosition(assignedPos) ? 'stand' : 'door';
-    } else if (isGuardTeachingDuringBlock(guardId, block, day, filteredLessons)) {
+    } else if (isGuardTeachingDuringBlock(guardId, block, day, filteredLessons, state.settings?.lessonBufferBeforeMinutes ?? 0, state.settings?.lessonBufferAfterMinutes ?? 5)) {
       statusLabel = '📚 Swim Lessons';
       statusDesc = 'Teaching scheduled lessons';
       badgeClass = 'lessons';
